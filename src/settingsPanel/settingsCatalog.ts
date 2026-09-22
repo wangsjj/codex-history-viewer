@@ -177,7 +177,7 @@ export const SETTINGS_DEFINITIONS: readonly SettingsDefinition[] = [
     "history.behavior",
     "select",
     "application",
-    "generated",
+    "nativeWhenAvailable",
     {
       options: ["generated", "nativeWhenAvailable"].map((value) =>
         option("history.titleSource", value, true)

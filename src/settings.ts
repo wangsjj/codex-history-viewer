@@ -174,9 +174,9 @@ export function getConfig(): CodexHistoryViewerConfig {
   const resumeClaudeMethod = parseResumeMethod(cfg.get<unknown>("resume.claudeMethod"));
   const historyDateBasisRaw = (cfg.get<string>("history.dateBasis") ?? "started").trim().toLowerCase();
   const historyDateBasis: HistoryDateBasis = historyDateBasisRaw === "lastactivity" ? "lastActivity" : "started";
-  const historyTitleSourceRaw = (cfg.get<string>("history.titleSource") ?? "generated").trim().toLowerCase();
+  const historyTitleSourceRaw = (cfg.get<string>("history.titleSource") ?? "nativeWhenAvailable").trim().toLowerCase();
   const historyTitleSource: HistoryTitleSource =
-    historyTitleSourceRaw === "nativewhenavailable" ? "nativeWhenAvailable" : "generated";
+    historyTitleSourceRaw === "generated" ? "generated" : "nativeWhenAvailable";
   const chatOpenPosition = parseChatOpenPosition(cfg.get<string>("chat.openPosition") ?? "top");
   const chatPerformanceMode = parseChatPerformanceMode(cfg.get<string>("chat.performanceMode") ?? "auto");
   const toolDisplayModeRaw = (cfg.get<string>("chat.toolDisplayMode") ?? "detailsOnly").trim().toLowerCase();

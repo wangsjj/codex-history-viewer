@@ -244,6 +244,7 @@ Common settings include:
 - `codexHistoryViewer.images.enabled`: show supported image attachments.
 - `codexHistoryViewer.ui.timeGuide.enabled`: enable compact date guides and bookmark controls.
 - `codexHistoryViewer.ui.language`: choose `zh-cn` (Simplified Chinese, default), `en` (English), `ja` (Japanese), or `auto` (follow the VS Code display language).
+- `codexHistoryViewer.history.titleSource`: defaults to `nativeWhenAvailable`, which prefers the official conversation title saved by Codex or Claude Code and falls back to session content when no title is available. Custom titles always take priority. Choose `generated` to use session content instead.
 
 ### Suggested Settings
 
