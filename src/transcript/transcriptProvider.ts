@@ -77,6 +77,13 @@ export class TranscriptContentProvider implements vscode.TextDocumentContentProv
     }
   }
 
+  public refreshI18n(): void {
+    this.cache.clear();
+    for (const document of vscode.workspace.textDocuments) {
+      if (isTranscriptDocumentUri(document.uri, this.scheme)) this.onDidChangeEmitter.fire(document.uri);
+    }
+  }
+
   public releaseDocument(uri: vscode.Uri): void {
     if (!isTranscriptDocumentUri(uri, this.scheme)) return;
     const fsPath = getSessionFsPathFromUri(uri);

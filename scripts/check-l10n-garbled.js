@@ -7,11 +7,14 @@ const targetPairs = [
     name: "runtime",
     en: "l10n/bundle.l10n.json",
     ja: "l10n/bundle.l10n.ja.json",
+    zh: "l10n/bundle.l10n.zh-cn.json",
   },
   {
     name: "manifest",
-    en: "package.nls.json",
+    en: "package.nls.en.json",
     ja: "package.nls.ja.json",
+    zh: "package.nls.zh-cn.json",
+    default: "package.nls.json",
   },
 ];
 
@@ -26,7 +29,7 @@ let failed = false;
 const bundles = new Map();
 
 for (const pair of targetPairs) {
-  for (const rel of [pair.en, pair.ja]) {
+  for (const rel of [pair.en, pair.ja, pair.zh, pair.default].filter(Boolean)) {
     const full = path.join(process.cwd(), rel);
     if (!fs.existsSync(full)) {
       failed = true;
@@ -77,35 +80,38 @@ function placeholderSignature(value) {
 }
 
 for (const pair of targetPairs) {
-  const enBundle = bundles.get(pair.en);
-  const jaBundle = bundles.get(pair.ja);
-  if (!enBundle || !jaBundle) continue;
+  for (const language of ["ja", "zh", "default"]) {
+    if (!pair[language]) continue;
+    const enBundle = bundles.get(pair.en);
+    const localizedBundle = bundles.get(pair[language]);
+    if (!enBundle || !localizedBundle) continue;
 
-  const enKeys = Object.keys(enBundle);
-  const jaKeys = Object.keys(jaBundle);
-  const enKeySet = new Set(enKeys);
-  const jaKeySet = new Set(jaKeys);
+    const enKeys = Object.keys(enBundle);
+    const localizedKeys = Object.keys(localizedBundle);
+    const enKeySet = new Set(enKeys);
+    const localizedKeySet = new Set(localizedKeys);
 
-  for (const key of enKeys) {
-    if (!jaKeySet.has(key)) {
-      failed = true;
-      console.error(`[check:l10n] Missing Japanese key (${pair.name}): ${key}`);
-      continue;
+    for (const key of enKeys) {
+      if (!localizedKeySet.has(key)) {
+        failed = true;
+        console.error(`[check:l10n] Missing ${language} key (${pair.name}): ${key}`);
+        continue;
+      }
+      const enSignature = placeholderSignature(enBundle[key]);
+      const localizedSignature = placeholderSignature(localizedBundle[key]);
+      if (enSignature !== localizedSignature) {
+        failed = true;
+        console.error(
+          `[check:l10n] Placeholder mismatch (${pair.name}): ${key} (en: ${enSignature || "none"}, ${language}: ${localizedSignature || "none"})`,
+        );
+      }
     }
-    const enSignature = placeholderSignature(enBundle[key]);
-    const jaSignature = placeholderSignature(jaBundle[key]);
-    if (enSignature !== jaSignature) {
-      failed = true;
-      console.error(
-        `[check:l10n] Placeholder mismatch (${pair.name}): ${key} (en: ${enSignature || "none"}, ja: ${jaSignature || "none"})`,
-      );
-    }
-  }
 
-  for (const key of jaKeys) {
-    if (enKeySet.has(key)) continue;
-    failed = true;
-    console.error(`[check:l10n] Missing English key (${pair.name}): ${key}`);
+    for (const key of localizedKeys) {
+      if (enKeySet.has(key)) continue;
+      failed = true;
+      console.error(`[check:l10n] Missing English key (${pair.name}): ${key}`);
+    }
   }
 }
 

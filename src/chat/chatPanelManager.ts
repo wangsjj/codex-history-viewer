@@ -37,7 +37,7 @@ import {
   type MermaidExportFormat,
   type MermaidExportScope,
 } from "./mermaidExport";
-import { t } from "../i18n";
+import { resolveUiLanguage, t } from "../i18n";
 import { getConfig, type ChatTurnTimelineMode, type ResumeMethod } from "../settings";
 import { resolveDateTimeSettings } from "../utils/dateTimeSettings";
 import { truncateByDisplayWidth } from "../utils/textUtils";
@@ -1105,7 +1105,7 @@ export class ChatPanelManager implements vscode.Disposable {
   private createPanel(params: { kind: ChatPanelKind }): vscode.WebviewPanel {
     const panel = vscode.window.createWebviewPanel(
       "codexHistoryViewer.chat",
-      "Codex Session",
+      t("transcript.session", "Codex"),
       { viewColumn: vscode.ViewColumn.Active, preserveFocus: params.kind === "reusable" },
       this.buildWebviewPanelOptions(),
     );
@@ -1302,7 +1302,7 @@ export class ChatPanelManager implements vscode.Disposable {
 
     // Do not inline log content into HTML. Send it via postMessage (XSS mitigation).
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${resolveUiLanguage()}">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}">
@@ -1311,7 +1311,7 @@ export class ChatPanelManager implements vscode.Disposable {
   <link rel="stylesheet" href="${sharedTimeGuideCssUri}">
   <link rel="stylesheet" href="${sharedFileKindCssUri}">
   <link rel="stylesheet" href="${cssUri}">
-  <title>Codex History Viewer</title>
+  <title>${t("settingsPanel.productName")}</title>
 </head>
 <body>
   <div id="toolbar">
@@ -4331,6 +4331,8 @@ export class ChatPanelManager implements vscode.Disposable {
 
   private buildI18n(): Record<string, string> {
     return {
+      language: resolveUiLanguage(),
+      context: t("chat.label.context"),
       resumeInCodex: t("chat.button.resumeInCodex"),
       resumeInCodexTooltip: t("chat.tooltip.resumeInCodex"),
       restoreArchived: t("chat.button.restoreArchived"),
@@ -4740,7 +4742,7 @@ export class ChatPanelManager implements vscode.Disposable {
   }
 
   private buildDateTime(): { timeZone: string } {
-    // Resolve the display time zone from UI language settings (ja=JST, auto/en=system).
+    // Use the system time zone independently of the display language.
     const { timeZone } = resolveDateTimeSettings();
     return { timeZone };
   }

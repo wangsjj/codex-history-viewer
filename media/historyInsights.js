@@ -2619,7 +2619,9 @@
   }
 
   function normalizeUiLanguage(value) {
-    return String(value || "").trim().toLowerCase().startsWith("ja") ? "ja" : "en";
+    const language = String(value || "").trim().toLowerCase();
+    if (language.startsWith("zh")) return "zh-cn";
+    return language.startsWith("ja") ? "ja" : "en";
   }
 
   function selectBreakdownRows(group, metricValue) {

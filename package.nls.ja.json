@@ -161,7 +161,7 @@
   "cfg.resumeOpenTarget.labelPanel": "パネル",
   "cfg.resumeOpenTarget.enumSidebar": "Codex のサイドバーで再開します（推奨の既定値）。",
   "cfg.resumeOpenTarget.enumPanel": "Codex のパネルタブで再開します。",
-  "cfg.uiLanguage": "この拡張機能で使用する表示言語を選択します。自動は VS Code の表示言語に従います。",
+  "cfg.uiLanguage": "この拡張機能の表示言語を選択します。既定は簡体字中国語です。自動は VS Code の表示言語に従います。",
   "cfg.uiLanguage.labelAuto": "自動",
   "cfg.uiLanguage.labelJapanese": "日本語",
   "cfg.uiLanguage.labelEnglish": "英語",
@@ -255,5 +255,7 @@
   "cfg.resumeMethod.labelBoth": "拡張機能と CLI",
   "cfg.resumeMethod.enumExtension": "拡張機能で再開する操作だけを表示します。",
   "cfg.resumeMethod.enumCli": "CLI の再開コマンドを新しい統合ターミナルへ入力する操作だけを表示します。実行には Enter キーが必要です。",
-  "cfg.resumeMethod.enumBoth": "両方の方式を分割ボタンで表示し、最後に成功した方式を主ボタンにします。"
+  "cfg.resumeMethod.enumBoth": "両方の方式を分割ボタンで表示し、最後に成功した方式を主ボタンにします。",
+  "cfg.uiLanguage.labelChinese": "簡体字中国語",
+  "cfg.uiLanguage.enumChinese": "この拡張機能を常に簡体字中国語で表示します（既定）。"
 }

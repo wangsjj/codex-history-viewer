@@ -1,4 +1,5 @@
 import * as path from "path";
+import { t } from "../i18n";
 import { extractClaudeTerminalOutput } from "../chat/claudeTerminalOutput";
 import { tryReadSessionMeta } from "../sessions/sessionSummary";
 import type { SessionSource, SessionSummary } from "../sessions/sessionTypes";
@@ -77,7 +78,7 @@ export async function renderResumeContext(fsPath: string, options: ResumeRenderO
   }
 
   const taskCandidate = (taskText ?? "").trim();
-  const safeTask = taskCandidate.length > 0 ? taskCandidate : "(task not found)";
+  const safeTask = taskCandidate.length > 0 ? taskCandidate : t("resume.noTask");
   let recentTrimmed = recent.slice();
   let out = buildMarkdown({ fsPath, meta, historySource, timeZone, task: safeTask, recent: recentTrimmed });
 
@@ -104,36 +105,36 @@ function buildMarkdown(params: {
   const { fsPath, meta, historySource, timeZone, task, recent } = params;
   const lines: string[] = [];
 
-  lines.push("# Resume context (Codex History Viewer)");
+  lines.push(`# ${t("resume.title")}`);
   lines.push("");
-  lines.push(`- Source: \`${fsPath}\``);
-  lines.push(`- History Source: \`${historySource}\``);
-  if (meta?.timestampIso) lines.push(`- Start: \`${formatIsoToLocal(meta.timestampIso, timeZone, { withSeconds: false })}\``);
-  if (meta?.cwd) lines.push(`- CWD: \`${meta.cwd}\``);
+  lines.push(`- ${t("history.filter.section.source")}: \`${fsPath}\``);
+  lines.push(`- ${t("transcript.historySource")}: \`${historySource}\``);
+  if (meta?.timestampIso) lines.push(`- ${t("chat.turn.start")}: \`${formatIsoToLocal(meta.timestampIso, timeZone, { withSeconds: false })}\``);
+  if (meta?.cwd) lines.push(`- ${t("chat.environment.cwd")}: \`${meta.cwd}\``);
   if (meta?.cliVersion) lines.push(`- CLI: \`${meta.cliVersion}\``);
-  if (meta?.modelProvider) lines.push(`- Model Provider: \`${meta.modelProvider}\``);
-  if (meta?.source) lines.push(`- Source type: \`${meta.source}\``);
+  if (meta?.modelProvider) lines.push(`- ${t("transcript.modelProvider")}: \`${meta.modelProvider}\``);
+  if (meta?.source) lines.push(`- ${t("resume.sourceType")}: \`${meta.source}\``);
   lines.push("");
-  lines.push("> IMPORTANT: This excerpt is copied from a past session. Read it and continue the work.");
+  lines.push(`> ${t("resume.instructions")}`);
   lines.push("");
   lines.push("---");
   lines.push("");
-  lines.push("## Task");
+  lines.push(`## ${t("codexAgentRuns.task")}`);
   lines.push("");
   lines.push(task);
   lines.push("");
-  lines.push("## Recent messages");
+  lines.push(`## ${t("resume.recentMessages")}`);
   lines.push("");
 
   if (recent.length === 0) {
-    lines.push("(no recent messages)");
+    lines.push(t("resume.noRecentMessages"));
     lines.push("");
     return lines.join("\n");
   }
 
   for (const m of recent) {
-    lines.push(`### ${m.role === "user" ? "User" : "Assistant"}`);
-    if (m.timestampIso) lines.push(`- Timestamp: \`${formatIsoToLocal(m.timestampIso, timeZone, { withSeconds: true })}\``);
+    lines.push(`### ${t(`chat.role.${m.role}`)}`);
+    if (m.timestampIso) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(m.timestampIso, timeZone, { withSeconds: true })}\``);
     lines.push("");
     lines.push(m.text);
     lines.push("");
@@ -278,9 +279,9 @@ async function collectClaudeResumeMessage(
 }
 
 function buildResumeAttachmentSummary(attachments: readonly ChatAttachment[]): string {
-  const lines = buildAttachmentSummaryLines(attachments, { mode: "resume" });
+  const lines = buildAttachmentSummaryLines(attachments, { mode: "resume", translate: t });
   if (lines.length === 0) return "";
-  return ["Attachments and referenced files from previous session:", ...lines].join("\n");
+  return [t("resume.attachments"), ...lines].join("\n");
 }
 
 function combineResumeText(attachmentSummary: string, text: string): string {

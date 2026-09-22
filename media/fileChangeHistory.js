@@ -98,6 +98,9 @@
 
   window.addEventListener("message", (event) => {
     const msg = event.data || {};
+    if (["zh-cn", "en", "ja"].includes(msg.i18n?.language)) {
+      document.documentElement.lang = msg.i18n.language;
+    }
     if (msg.i18n) {
       i18n = msg.i18n;
       updatePageSearchStaticText();

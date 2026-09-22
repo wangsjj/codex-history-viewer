@@ -1243,7 +1243,7 @@
       value.version === 2 &&
       Number.isSafeInteger(value.revision) &&
       value.revision >= 0 &&
-      (value.language === "ja" || value.language === "en") &&
+      (value.language === "ja" || value.language === "en" || value.language === "zh-cn") &&
       typeof value.title === "string" &&
       typeof value.compactTitle === "string" &&
       typeof value.activeTargetId === "string" &&

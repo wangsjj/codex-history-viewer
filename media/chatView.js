@@ -1000,6 +1000,9 @@
 
   window.addEventListener("message", (event) => {
     const msg = event.data || {};
+    if (["zh-cn", "en", "ja"].includes(msg.i18n?.language)) {
+      document.documentElement.lang = msg.i18n.language;
+    }
     if (msg.type === "viewState") {
       const revision = Number(msg.revision);
       if (Number.isSafeInteger(revision) && revision >= 0) {
@@ -11228,7 +11231,7 @@
     }
     if (item.isContext) {
       const ctxTag = el("span", { className: "tag context" });
-      ctxTag.textContent = "context";
+      ctxTag.textContent = getSafeUiText(i18n.context, "context");
       metaTags.appendChild(ctxTag);
     }
     if (typeof item.timestampIso === "string") {

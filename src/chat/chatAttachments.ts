@@ -127,8 +127,11 @@ export function extractClaudeTerminalInput(record: unknown, content: unknown): s
 
 export type AttachmentOutputChannel = "webview" | "markdown" | "search" | "resume" | "handoff";
 
+type SummaryTranslator = (key: string, ...args: Array<string | number | boolean>) => string;
+
 export interface AttachmentSummaryOptions {
   mode?: "markdown" | "resume" | "handoff";
+  translate?: SummaryTranslator;
 }
 
 interface TextAttachmentSpan {
@@ -1529,27 +1532,27 @@ export function buildAttachmentSummaryLines(
     const attachment = sanitizeAttachmentForChannel(rawAttachment, mode);
     if (!attachment) continue;
     if (attachment.type === "image") {
-      lines.push(formatImageSummary(attachment));
+      lines.push(formatImageSummary(attachment, options.translate));
       continue;
     }
     if (attachment.type === "document") {
-      lines.push(formatDocumentSummary(attachment));
+      lines.push(formatDocumentSummary(attachment, options.translate));
       continue;
     }
     if (attachment.type === "fileReference") {
-      lines.push(formatFileReferenceSummary(attachment));
+      lines.push(formatFileReferenceSummary(attachment, options.translate));
       continue;
     }
     if (attachment.type === "selectionReference") {
-      lines.push(formatSelectionSummary(attachment));
+      lines.push(formatSelectionSummary(attachment, options.translate));
       continue;
     }
     if (attachment.type === "notification") {
-      lines.push(...formatTaskNotificationSummary(attachment, mode));
+      lines.push(...formatTaskNotificationSummary(attachment, mode, options.translate));
       continue;
     }
     if (attachment.type === "invoke") {
-      lines.push(...formatInvokeSummary(attachment, mode));
+      lines.push(...formatInvokeSummary(attachment, mode, options.translate));
     }
   }
   return lines;
@@ -1980,50 +1983,59 @@ function createUnavailableDocument(params: {
   };
 }
 
-function formatImageSummary(image: ChatImageAttachment): string {
-  const label = image.label || "Image attachment";
-  const meta = [image.mimeType, image.status === "unavailable" ? image.reason : ""].filter(Boolean).join(", ");
-  return `- Image attachment: ${formatMarkdownCodeSpan(label)}${meta ? ` (${meta})` : ""}`;
+function summaryText(translate: SummaryTranslator | undefined, key: string, fallback: string, ...args: Array<string | number | boolean>): string {
+  return translate ? translate(key, ...args) : fallback;
 }
 
-function formatDocumentSummary(document: ChatDocumentAttachment): string {
+function formatImageSummary(image: ChatImageAttachment, translate?: SummaryTranslator): string {
+  const label = image.label || summaryText(translate, "chat.image.attachmentLabel", "Image attachment");
+  const meta = [image.mimeType, image.status === "unavailable" ? image.reason : ""].filter(Boolean).join(", ");
+  return `- ${summaryText(translate, "chat.image.attachmentLabel", "Image attachment")}: ${formatMarkdownCodeSpan(label)}${meta ? ` (${meta})` : ""}`;
+}
+
+function formatDocumentSummary(document: ChatDocumentAttachment, translate?: SummaryTranslator): string {
   const label = document.label || defaultDocumentLabel(document.documentKind);
   const meta = [document.mimeType, document.documentKind, document.status === "unavailable" ? document.reason : ""]
     .filter(Boolean)
     .join(", ");
-  return `- Attached file: ${formatMarkdownCodeSpan(label)}${meta ? ` (${meta})` : ""}`;
+  return `- ${summaryText(translate, "transcript.attachedFile", "Attached file")}: ${formatMarkdownCodeSpan(label)}${meta ? ` (${meta})` : ""}`;
 }
 
-function formatFileReferenceSummary(reference: ChatFileReferenceAttachment): string {
-  const label = reference.source === "claudeIdeOpenedFile" ? "Opened file" : "File reference";
+function formatFileReferenceSummary(reference: ChatFileReferenceAttachment, translate?: SummaryTranslator): string {
+  const label = reference.source === "claudeIdeOpenedFile"
+    ? summaryText(translate, "chat.attachment.openedFile", "Opened file")
+    : summaryText(translate, "chat.attachment.fileReference", "File reference");
   const target = reference.path || reference.label || DEFAULT_FILE_REFERENCE_LABEL;
-  const location = formatLineRange(reference.line, reference.endLine);
+  const location = formatLineRange(reference.line, reference.endLine, translate);
   return `- ${label}: ${formatMarkdownCodeSpan(target)}${location ? ` (${location})` : ""}`;
 }
 
-function formatSelectionSummary(selection: ChatSelectionReferenceAttachment): string {
+function formatSelectionSummary(selection: ChatSelectionReferenceAttachment, translate?: SummaryTranslator): string {
   const target = selection.path || selection.label || "Selection";
-  const location = formatLineRange(selection.line, selection.endLine);
-  return `- Selection reference: ${formatMarkdownCodeSpan(target)}${location ? ` (${location})` : ""}`;
+  const location = formatLineRange(selection.line, selection.endLine, translate);
+  return `- ${summaryText(translate, "transcript.selectionReference", "Selection reference")}: ${formatMarkdownCodeSpan(target)}${location ? ` (${location})` : ""}`;
 }
 
-function formatTaskNotificationSummary(notification: ChatNotificationAttachment, mode: AttachmentSummaryOptions["mode"]): string[] {
+function formatTaskNotificationSummary(notification: ChatNotificationAttachment, mode: AttachmentSummaryOptions["mode"], translate?: SummaryTranslator): string[] {
   const lines: string[] = [];
-  const headerParts = ["Task notification", notification.status];
+  const headerParts = [
+    summaryText(translate, "chat.notification.task.title", "Task notification"),
+    summaryText(translate, `chat.notification.task.status.${notification.status}`, notification.status),
+  ];
   if (notification.summary) headerParts.push(notification.summary);
   lines.push(`- ${headerParts.filter(Boolean).join(": ")}`);
   const usageText = formatTaskNotificationUsageText(notification.usage);
-  if (usageText && mode === "markdown") lines.push(`  - Usage: ${usageText}`);
+  if (usageText && mode === "markdown") lines.push(`  - ${summaryText(translate, "chat.notification.task.usage", "Usage")}: ${usageText}`);
   if (notification.result) {
     const limit = mode === "markdown" ? CHAT_TASK_NOTIFICATION_RESULT_MARKDOWN_CHARS : 1_000;
-    lines.push(`  - Result: ${formatClampedTextForSummary(notification.result, limit)}`);
+    lines.push(`  - ${summaryText(translate, "chat.notification.task.result", "Result")}: ${formatClampedTextForSummary(notification.result, limit)}`);
   }
   return lines;
 }
 
-function formatInvokeSummary(invoke: ChatInvokeAttachment, mode: AttachmentSummaryOptions["mode"]): string[] {
-  const lines: string[] = [`- Tool invocation: ${formatMarkdownCodeSpan(invoke.toolName)}`];
-  if (invoke.description) lines.push(`  - Description: ${invoke.description}`);
+function formatInvokeSummary(invoke: ChatInvokeAttachment, mode: AttachmentSummaryOptions["mode"], translate?: SummaryTranslator): string[] {
+  const lines: string[] = [`- ${summaryText(translate, "chat.invoke.title", "Tool invocation")}: ${formatMarkdownCodeSpan(invoke.toolName)}`];
+  if (invoke.description) lines.push(`  - ${summaryText(translate, "chat.invoke.description", "Description")}: ${invoke.description}`);
   if (mode === "resume" || mode === "handoff") return lines;
   for (const parameter of invoke.parameters) {
     const value = formatClampedTextForSummary(parameter.value, CHAT_INVOKE_PARAMETER_MARKDOWN_CHARS);
@@ -2043,10 +2055,10 @@ function formatMarkdownCodeSpan(value: string): string {
   return `${delimiter}${body}${delimiter}`;
 }
 
-function formatLineRange(line: number | undefined, endLine: number | undefined): string {
+function formatLineRange(line: number | undefined, endLine: number | undefined, translate?: SummaryTranslator): string {
   if (typeof line !== "number" || !Number.isFinite(line)) return "";
-  if (typeof endLine === "number" && Number.isFinite(endLine) && endLine > line) return `lines ${line}-${endLine}`;
-  return `line ${line}`;
+  if (typeof endLine === "number" && Number.isFinite(endLine) && endLine > line) return summaryText(translate, "chat.toolCard.meta.linesRange", `lines ${line}-${endLine}`, line, endLine);
+  return summaryText(translate, "chat.toolCard.meta.line", `line ${line}`, line);
 }
 
 function addSearchPart(parts: string[], value: unknown, maxChars = CHAT_ATTACHMENT_LABEL_SEARCH_CHARS): void {

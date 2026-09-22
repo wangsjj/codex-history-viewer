@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { ChatPanelManager } from "../chat/chatPanelManager";
-import { t } from "../i18n";
+import { resolveUiLanguage, t } from "../i18n";
 import { getConfig, type CodexHistoryViewerConfig } from "../settings";
 import {
   elapsedMs,
@@ -959,7 +959,7 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
     ].join("; ");
 
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${resolveUiLanguage()}">
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="${csp}">
@@ -1006,6 +1006,7 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
 
   private buildI18n(): Record<string, string> {
     return {
+      language: resolveUiLanguage(),
       title: t("fileChangeHistory.title"),
       openFile: t("fileChangeHistory.openFile"),
       copyPath: t("fileChangeHistory.copyPath"),

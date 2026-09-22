@@ -540,29 +540,29 @@ function buildHandoffMarkdown(params: {
   const diffs = buildDiffSection(context.diffBlocks, pathRewrite);
   const displayCwd = pathRewrite.mode === "relocated" ? pathRewrite.displayCwd : session.meta.cwd;
 
-  lines.push("# Handoff");
+  lines.push(`# ${t("handoff.template.title")}`);
   lines.push("");
-  lines.push(`- Source: \`${sourceLabel}\``);
-  lines.push(`- Source session file: \`${session.fsPath}\``);
-  if (displayCwd) lines.push(`- CWD: \`${displayCwd}\``);
+  lines.push(`- ${t("history.filter.section.source")}: \`${sourceLabel}\``);
+  lines.push(`- ${t("handoff.template.sourceFile")}: \`${session.fsPath}\``);
+  if (displayCwd) lines.push(`- ${t("chat.environment.cwd")}: \`${displayCwd}\``);
   if (pathRewrite.mode === "relocated") {
-    if (pathRewrite.recordedCwd) lines.push(`- Recorded CWD: \`${pathRewrite.recordedCwd}\``);
+    if (pathRewrite.recordedCwd) lines.push(`- ${t("chat.meta.originalCwd")}: \`${pathRewrite.recordedCwd}\``);
     const mappingText = pathRewrite.mappings.map((mapping) => `${mapping.sourceCwd} -> ${mapping.targetCwd}`).join("; ");
-    if (mappingText) lines.push(`- Path Mapping: \`${mappingText}\``);
+    if (mappingText) lines.push(`- ${t("handoff.template.pathMapping")}: \`${mappingText}\``);
   }
   lines.push("");
-  lines.push("> Transcript is tail-prioritized. Tool calls and tool outputs are omitted. File changes are included when recoverable.");
+  lines.push(`> ${t("handoff.template.description")}`);
   lines.push("");
-  lines.push("## Latest User Request");
+  lines.push(`## ${t("handoff.template.latestRequest")}`);
   lines.push("");
-  lines.push(currentGoal ? clampText(currentGoal, MAX_GOAL_CHARS) : "(no user request extracted)");
+  lines.push(currentGoal ? clampText(currentGoal, MAX_GOAL_CHARS) : t("handoff.template.noRequest"));
   lines.push("");
-  lines.push("## Transcript Excerpt");
+  lines.push(`## ${t("handoff.template.transcript")}`);
   lines.push("");
   lines.push(transcript);
   if (diffs) {
     lines.push("");
-    lines.push("## File Changes");
+    lines.push(`## ${t("historyInsights.activityGroupFileChanges")}`);
     lines.push("");
     lines.push(diffs);
   }
@@ -576,7 +576,7 @@ function buildTranscriptExcerpt(
   maxChars: number,
   pathRewrite: HandoffPathRewriteMetadata,
 ): string {
-  if (messages.length === 0) return "(no messages extracted)";
+  if (messages.length === 0) return t("handoff.template.noMessages");
 
   const blocks = messages.map((message) => renderMessageBlock(message, pathRewrite));
   const selected: string[] = [];
@@ -596,21 +596,21 @@ function buildTranscriptExcerpt(
     used += block.length + 2;
   }
 
-  const prefix = omitted > 0 ? [`(${omitted} earlier message(s) omitted due to size limits)`, ""] : [];
+  const prefix = omitted > 0 ? [t("handoff.template.omittedMessages", omitted), ""] : [];
   return [...prefix, ...selected].join("\n\n");
 }
 
 function renderMessageBlock(message: HandoffMessage, pathRewrite: HandoffPathRewriteMetadata): string {
-  const lines = [`### ${message.role}`];
+  const lines = [`### ${t(`chat.role.${message.role}`)}`];
   lines.push("");
   lines.push(rewriteHandoffFreeText(message.text, pathRewrite));
   return lines.join("\n");
 }
 
 function buildHandoffAttachmentSummary(attachments: readonly ChatAttachment[]): string {
-  const lines = buildAttachmentSummaryLines(attachments, { mode: "handoff" });
+  const lines = buildAttachmentSummaryLines(attachments, { mode: "handoff", translate: t });
   if (lines.length === 0) return "";
-  return ["Attachments and referenced files from previous session:", ...lines].join("\n");
+  return [t("resume.attachments"), ...lines].join("\n");
 }
 
 function combineHandoffText(attachmentSummary: string, text: string): string {
@@ -630,7 +630,7 @@ function buildDiffSection(diffBlocks: readonly HandoffDiffBlock[], pathRewrite: 
     const body = ["```diff", block.diff, "```"].join("\n");
     const next = `${header}\n\n${body}`;
     if (used + next.length > MAX_DIFF_CHARS) {
-      lines.push("(additional file changes omitted due to size limits)");
+      lines.push(t("handoff.template.omittedChanges"));
       break;
     }
     lines.push(next);

@@ -1,5 +1,6 @@
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
+import { t } from "../i18n";
 import { tryReadSessionMeta } from "../sessions/sessionSummary";
 import type { ProjectAssociationStore } from "../services/projectAssociationStore";
 import { collectLocalLinkBaseDirs, resolveLocalFileLinkTarget, tryParseLocalFileLink } from "../utils/localFileLinks";
@@ -64,8 +65,8 @@ export class TranscriptDocumentLinkProvider implements vscode.DocumentLinkProvid
           ? `${resolved.relocatedFrom} -> ${resolved.fsPath}`
           : resolved.fsPath;
         link.tooltip = resolved.line
-          ? `Open ${targetLabel}:${resolved.line}${resolved.column ? `:${resolved.column}` : ""}`
-          : `Open ${targetLabel}`;
+          ? `${t("chat.attachment.open")} ${targetLabel}:${resolved.line}${resolved.column ? `:${resolved.column}` : ""}`
+          : `${t("chat.attachment.open")} ${targetLabel}`;
         links.push(link);
       }
     }

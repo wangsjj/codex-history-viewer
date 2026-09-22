@@ -59,7 +59,7 @@ export function extractMyRequestForCodex(text: string): string | null {
 }
 
 export function extractTaskSectionText(text: string): string | null {
-  // Extract a Markdown "Task" section (e.g. "# Task" / "## Task") and return only its body.
+  // Extract a localized Markdown task section (Task / 任务 / タスク) and return only its body.
   // This is used for the compact user view when "details" are hidden.
   const normalized = String(text ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = normalized.split("\n");
@@ -75,7 +75,7 @@ export function extractTaskSectionText(text: string): string | null {
     }
     if (inFence) continue;
 
-    const m = line.match(/^(#{1,6})\s*Task\s*$/i);
+    const m = line.match(/^(#{1,6})\s*(?:Task|任务|タスク)\s*$/i);
     if (!m) continue;
     const level = m[1]!.length;
 

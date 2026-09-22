@@ -243,7 +243,7 @@ Common settings include:
 - `codexHistoryViewer.webview.restoreAfterReload`: experimental opt-in to restoring session tabs, File AI Change History, History Insights, and the dedicated settings page after Reload Window or VS Code restart.
 - `codexHistoryViewer.images.enabled`: show supported image attachments.
 - `codexHistoryViewer.ui.timeGuide.enabled`: enable compact date guides and bookmark controls.
-- `codexHistoryViewer.ui.language`: choose `auto`, `en`, or `ja`.
+- `codexHistoryViewer.ui.language`: choose `zh-cn` (Simplified Chinese, default), `en` (English), `ja` (Japanese), or `auto` (follow the VS Code display language).
 
 ### Suggested Settings
 

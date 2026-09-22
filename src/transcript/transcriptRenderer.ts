@@ -54,25 +54,25 @@ export async function renderTranscript(
   const historySource = detectHistorySource(meta?.historySource, fsPath);
   const pastedPromptResolver = historySource === "claude" ? await createClaudePastedPromptResolver(fsPath) : undefined;
 
-  lines.push(`# ${historySource === "claude" ? "Claude Code" : "Codex"} Session`);
+  lines.push(`# ${t("transcript.session", historySource === "claude" ? "Claude Code" : "Codex")}`);
   lines.push(``);
-  lines.push(`- File: \`${fsPath}\``);
-  lines.push(`- History Source: \`${historySource}\``);
-  if (options.locationLabel) lines.push(`- Location: \`${options.locationLabel}\``);
-  if (meta?.timestampIso) lines.push(`- Start: \`${formatIsoToLocal(meta.timestampIso, timeZone, { withSeconds: false })}\``);
-  if (meta?.cwd) lines.push(`- CWD: \`${meta.cwd}\``);
+  lines.push(`- ${t("chat.codeComment.file")}: \`${fsPath}\``);
+  lines.push(`- ${t("transcript.historySource")}: \`${historySource}\``);
+  if (options.locationLabel) lines.push(`- ${t("tree.tooltip.location")}: \`${options.locationLabel}\``);
+  if (meta?.timestampIso) lines.push(`- ${t("chat.turn.start")}: \`${formatIsoToLocal(meta.timestampIso, timeZone, { withSeconds: false })}\``);
+  if (meta?.cwd) lines.push(`- ${t("chat.environment.cwd")}: \`${meta.cwd}\``);
   const displayCwd = typeof options.displayCwd === "string" ? options.displayCwd.trim() : "";
-  if (displayCwd && meta?.cwd && displayCwd !== meta.cwd) lines.push(`- Display CWD: \`${displayCwd}\``);
-  if (meta?.originator) lines.push(`- Originator: \`${meta.originator}\``);
+  if (displayCwd && meta?.cwd && displayCwd !== meta.cwd) lines.push(`- ${t("tree.tooltip.displayCwdLabel")}: \`${displayCwd}\``);
+  if (meta?.originator) lines.push(`- ${t("transcript.originator")}: \`${meta.originator}\``);
   if (meta?.cliVersion) lines.push(`- CLI: \`${meta.cliVersion}\``);
-  if (meta?.modelProvider) lines.push(`- Model Provider: \`${meta.modelProvider}\``);
-  if (meta?.source) lines.push(`- Source: \`${meta.source}\``);
+  if (meta?.modelProvider) lines.push(`- ${t("transcript.modelProvider")}: \`${meta.modelProvider}\``);
+  if (meta?.source) lines.push(`- ${t("history.filter.section.source")}: \`${meta.source}\``);
   const tags = Array.isArray(options.annotation?.tags)
     ? options.annotation!.tags.map((tag) => String(tag ?? "").trim()).filter((tag) => tag.length > 0)
     : [];
   const note = typeof options.annotation?.note === "string" ? options.annotation.note.trim() : "";
-  if (tags.length > 0) lines.push(`- Tags: ${tags.map((tag) => `\`#${tag}\``).join(", ")}`);
-  if (note) lines.push(`- Note: ${note}`);
+  if (tags.length > 0) lines.push(`- ${t("chat.annotation.tags")}: ${tags.map((tag) => `\`#${tag}\``).join(", ")}`);
+  if (note) lines.push(`- ${t("chat.annotation.note")}: ${note}`);
   lines.push(``);
   lines.push(`---`);
   lines.push(``);
@@ -117,7 +117,7 @@ export async function renderTranscript(
   }
 
   if (msgIndex === 0) {
-    lines.push(`(no user/assistant messages)`);
+    lines.push(t("transcript.noMessages"));
     lines.push(``);
   }
 
@@ -148,9 +148,9 @@ async function renderCodexRecord(
     if (!text) return { handled: true, msgIndex, lastToolCallId };
     msgIndex += 1;
     messageLineMap.set(msgIndex, lines.length + 1);
-    lines.push(`## [#${msgIndex}] Assistant`);
+    lines.push(`## [#${msgIndex}] ${t("chat.role.assistant")}`);
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     lines.push("");
     appendMessageBodyLines(lines, [], text);
     return { handled: true, msgIndex, lastToolCallId: undefined };
@@ -170,20 +170,20 @@ async function renderCodexRecord(
 
     const extracted = await extractCodexMessageContent(obj?.payload?.content, undefined, { enabled: false }, { role });
     const text = normalizeWhitespace(extracted.text);
-    const attachmentLines = buildAttachmentSummaryLines(extracted.attachments);
+    const attachmentLines = buildAttachmentSummaryLines(extracted.attachments, { translate: t });
     if (!text && attachmentLines.length === 0) return { handled: true, msgIndex, lastToolCallId };
 
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
-    const ctx = role !== "assistant" && isBoilerplateUserMessage(text) ? " (context)" : "";
+    const ctx = role !== "assistant" && isBoilerplateUserMessage(text) ? t("transcript.contextSuffix") : "";
 
     if (role === "user" || role === "assistant") {
       msgIndex += 1;
       messageLineMap.set(msgIndex, lines.length + 1);
-      lines.push(`## [#${msgIndex}] ${capitalize(role)}${ctx}`);
+      lines.push(`## [#${msgIndex}] ${t(`chat.role.${role}`)}${ctx}`);
     } else {
-      lines.push(`## ${capitalize(role)}${ctx}`);
+      lines.push(`## ${t(`chat.role.${role}`)}${ctx}`);
     }
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     lines.push(``);
     appendMessageBodyLines(lines, attachmentLines, text);
     lastToolCallId = undefined;
@@ -215,12 +215,12 @@ async function renderCodexRecord(
     const args = formatJsonIfPossible(argsRaw) ?? argsRaw;
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
 
-    lines.push(`## [tool] ${name}`);
-    if (callId) lines.push(`- Call ID: \`${callId}\``);
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    lines.push(`## [${t("chat.label.tool")}] ${name}`);
+    if (callId) lines.push(`- ${t("transcript.callId")}: \`${callId}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     lines.push(``);
     if (args) {
-      lines.push(`### Arguments`);
+      lines.push(`### ${t("chat.label.arguments")}`);
       lines.push(looksLikeJson(args) ? "```json" : "```");
       lines.push(args);
       lines.push("```");
@@ -239,17 +239,17 @@ async function renderCodexRecord(
     const extracted = await extractCodexToolOutput(obj?.payload?.output, undefined, { enabled: false });
     const outRaw = extracted.text;
     const out = formatJsonIfPossible(outRaw) ?? outRaw;
-    const attachmentLines = buildAttachmentSummaryLines(extracted.attachments);
+    const attachmentLines = buildAttachmentSummaryLines(extracted.attachments, { translate: t });
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
 
     if (callId && lastToolCallId && callId === lastToolCallId) {
-      lines.push(`### Output`);
+      lines.push(`### ${t("chat.label.output")}`);
     } else {
-      lines.push(`## [tool output]`);
-      if (callId) lines.push(`- Call ID: \`${callId}\``);
-      if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+      lines.push(`## [${t("historyInsights.detail.toolOutputs")}]`);
+      if (callId) lines.push(`- ${t("transcript.callId")}: \`${callId}\``);
+      if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
       lines.push(``);
-      lines.push(`### Output`);
+      lines.push(`### ${t("chat.label.output")}`);
     }
     for (const attachmentLine of attachmentLines) lines.push(attachmentLine);
     if (attachmentLines.length > 0 && out) lines.push("");
@@ -265,26 +265,26 @@ async function renderCodexRecord(
   const standalone = await projectCodexStandaloneResponseItem(obj?.payload, { enabled: false });
   if (standalone) {
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
-    lines.push(`## [tool] ${standalone.name}`);
-    if (standalone.callId) lines.push(`- Call ID: \`${standalone.callId}\``);
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
-    if (standalone.execution?.status) lines.push(`- Status: \`${standalone.execution.status}\``);
+    lines.push(`## [${t("chat.label.tool")}] ${standalone.name}`);
+    if (standalone.callId) lines.push(`- ${t("transcript.callId")}: \`${standalone.callId}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    if (standalone.execution?.status) lines.push(`- ${t("runtime.view.status")}: \`${standalone.execution.status}\``);
     lines.push(``);
 
     const args = standalone.argumentsText
       ? formatJsonIfPossible(standalone.argumentsText) ?? standalone.argumentsText
       : "";
     if (args) {
-      lines.push(`### Arguments`);
+      lines.push(`### ${t("chat.label.arguments")}`);
       lines.push(looksLikeJson(args) ? "```json" : "```");
       lines.push(args);
       lines.push("```");
       lines.push(``);
     }
 
-    const attachmentLines = buildAttachmentSummaryLines(standalone.attachments);
+    const attachmentLines = buildAttachmentSummaryLines(standalone.attachments, { translate: t });
     if (attachmentLines.length > 0) {
-      lines.push(`### Output`);
+      lines.push(`### ${t("chat.label.output")}`);
       for (const attachmentLine of attachmentLines) lines.push(attachmentLine);
       lines.push(``);
     }
@@ -318,11 +318,11 @@ async function renderClaudeRecord(
     if (!crossSessionMessage) return { handled: true, msgIndex, lastToolCallId };
 
     messageLineMap.set(msgIndex, lines.length + 1);
-    lines.push(`## [#${msgIndex}] Cross-session message`);
+    lines.push(`## [#${msgIndex}] ${t("chat.crossSession.title")}`);
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     if (crossSessionMessage.senderName) {
-      lines.push(`- From: ${escapeMarkdownInline(crossSessionMessage.senderName)}`);
+      lines.push(`- ${t("transcript.from")}: ${escapeMarkdownInline(crossSessionMessage.senderName)}`);
     }
     lines.push("");
     appendPlainTextCodeBlock(lines, crossSessionMessage.body);
@@ -339,7 +339,7 @@ async function renderClaudeRecord(
     messageLineMap.set(msgIndex, lines.length + 1);
     lines.push(`## [#${msgIndex}] ${t("chat.terminalOutput.title")}`);
     const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     for (const key of ["stdout", "stderr", "exitCode"] as const) {
       const value = terminalOutput[key];
       if (value === undefined) continue;
@@ -351,15 +351,15 @@ async function renderClaudeRecord(
   }
   const extracted = await extractClaudeMessageContent(rawContent, undefined, { enabled: false }, { role, pastedPrompt, record: obj });
   const text = normalizeWhitespace(extracted.text);
-  const attachmentLines = buildAttachmentSummaryLines(extracted.attachments);
+  const attachmentLines = buildAttachmentSummaryLines(extracted.attachments, { translate: t });
   const ts = typeof obj?.timestamp === "string" ? obj.timestamp : undefined;
 
   if (text || attachmentLines.length > 0) {
-    const ctx = role !== "assistant" && isBoilerplateUserMessage(text) ? " (context)" : "";
+    const ctx = role !== "assistant" && isBoilerplateUserMessage(text) ? t("transcript.contextSuffix") : "";
     msgIndex += 1;
     messageLineMap.set(msgIndex, lines.length + 1);
-    lines.push(`## [#${msgIndex}] ${capitalize(role)}${ctx}`);
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    lines.push(`## [#${msgIndex}] ${t(`chat.role.${role}`)}${ctx}`);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     lines.push(``);
     appendMessageBodyLines(lines, attachmentLines, text);
     lastToolCallId = undefined;
@@ -370,13 +370,13 @@ async function renderClaudeRecord(
     const callId = toolCall.callId;
     const args = formatJsonIfPossible(toolCall.argumentsText ?? "") ?? (toolCall.argumentsText ?? "");
 
-    lines.push(`## [tool] ${name}`);
-    if (callId) lines.push(`- Call ID: \`${callId}\``);
-    if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+    lines.push(`## [${t("chat.label.tool")}] ${name}`);
+    if (callId) lines.push(`- ${t("transcript.callId")}: \`${callId}\``);
+    if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
     lines.push(``);
     if (args) {
       const blockKind = looksLikeJson(args) ? "json" : "";
-      lines.push(`### Arguments`);
+      lines.push(`### ${t("chat.label.arguments")}`);
       lines.push(blockKind ? `\`\`\`${blockKind}` : "```");
       lines.push(args);
       lines.push("```");
@@ -392,13 +392,13 @@ async function renderClaudeRecord(
     if (!normalizeWhitespace(out)) continue;
 
     if (callId && lastToolCallId && callId === lastToolCallId) {
-      lines.push(`### Output`);
+      lines.push(`### ${t("chat.label.output")}`);
     } else {
-      lines.push(`## [tool output]`);
-      if (callId) lines.push(`- Call ID: \`${callId}\``);
-      if (ts) lines.push(`- Timestamp: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
+      lines.push(`## [${t("historyInsights.detail.toolOutputs")}]`);
+      if (callId) lines.push(`- ${t("transcript.callId")}: \`${callId}\``);
+      if (ts) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(ts, timeZone, { withSeconds: true })}\``);
       lines.push(``);
-      lines.push(`### Output`);
+      lines.push(`### ${t("chat.label.output")}`);
     }
     const blockKind = looksLikeJson(out) ? "json" : "";
     lines.push(blockKind ? `\`\`\`${blockKind}` : "```");
@@ -547,10 +547,6 @@ function safeJsonStringify(value: unknown): string {
   } catch {
     return String(value);
   }
-}
-
-function capitalize(s: string): string {
-  return s.length > 0 ? `${s[0]!.toUpperCase()}${s.slice(1)}` : s;
 }
 
 function isBoilerplateUserMessage(text: string): boolean {

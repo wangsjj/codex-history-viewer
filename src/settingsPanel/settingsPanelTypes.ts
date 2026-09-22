@@ -151,7 +151,7 @@ export interface SettingsPanelLabels {
 export interface SettingsPanelSnapshot {
   version: 2;
   revision: number;
-  language: "ja" | "en";
+  language: "ja" | "en" | "zh-cn";
   title: string;
   compactTitle: string;
   activeTargetId: string;
