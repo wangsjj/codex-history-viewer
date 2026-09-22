@@ -7884,7 +7884,7 @@
         },
         "codexHistoryViewer.history.titleSource": {
           "type": "string",
-          "default": "generated",
+          "default": "nativeWhenAvailable",
           "enum": [
             "generated",
             "nativeWhenAvailable"
