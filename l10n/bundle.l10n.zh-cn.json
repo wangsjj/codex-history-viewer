@@ -1760,5 +1760,15 @@
   "viewOptions.display.project": "项目视图",
   "viewOptions.scope.currentGroup": "当前项目组",
   "viewOptions.scope.all": "所有项目组",
-  "history.filter.compression.disabled": "若要仅显示压缩历史，请在“设置 > 历史来源”中启用压缩的 Codex 历史。"
+  "history.filter.compression.disabled": "若要仅显示压缩历史，请在“设置 > 历史来源”中启用压缩的 Codex 历史。",
+  "chat.tabMode.dedicated": "设为专用标签页",
+  "chat.tabMode.temporary": "设为临时标签页",
+  "chat.tabMode.state.dedicated": "专用标签页",
+  "chat.tabMode.state.temporary": "临时标签页",
+  "chat.claudeAgent.context": "继承的代理上下文",
+  "chat.claudeAgent.contextDescription": "引用上下文不会纳入此代理的搜索和统计。",
+  "chat.claudeAgent.partial": "部分上下文或记录归属无法确认，统计结果可能不完整。",
+  "chat.claudeAgent.openOwner": "打开父会话",
+  "chat.taskNotification.invalid": "通知详情（无法识别的内容）",
+  "chat.systemReminder.title": "内部提醒"
 }
