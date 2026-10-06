@@ -287,5 +287,6 @@
   "cmd.ui.en.historyMenuCompressionUncompressedChecked": "仅未压缩 ✓",
   "cmd.ui.en.historyMenuCompressionUncompressed": "仅未压缩",
   "menu.historyCompression.ja": "压缩状态",
-  "menu.historyCompression.en": "压缩状态"
+  "menu.historyCompression.en": "压缩状态",
+  "cfg.claudeNativeBookmarksEnabled": "自动显示 Claude Code 扩展创建的书签标记。标记为只读，不会修改原始文件。需要启用 Claude Code 来源以及日期指南/书签显示。"
 }
