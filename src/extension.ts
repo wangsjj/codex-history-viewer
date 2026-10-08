@@ -1,3 +1,4 @@
+import { UI_COMMAND_ALIASES } from "./generated/uiCommandAliases";
 import { isClaudeProgressId } from "./chat/claudeProgress";
 import { isClaudeQueuedInputId } from "./chat/claudeQueuedInput";
 import * as path from "node:path";
@@ -349,7 +350,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const updateUiLanguageContext = (): void => {
     // Keep the UI language context up to date for menu visibility switching.
-    // Keep these language codes aligned with package.json menu `when` clauses.
+    // The value is fixed to "ja"/"en" because package.json `when` clauses depend on it.
     const lang = resolveUiLanguage();
     void vscode.commands.executeCommand("setContext", "codexHistoryViewer.uiLang", lang);
   };
@@ -529,6 +530,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     bookmarkStore,
     searchHistoryStore,
     logger,
+    initialAuthoritativeHistoryRefreshSettled.promise,
   );
   const settingsPanel = new SettingsPanelManager(context);
   chatPanels.setSearchHistoryPeerRefresh(() => fileChangeHistoryPanels.refreshSearchHistoryCandidates());
@@ -2416,10 +2418,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       updateHistoryViewDescription();
       updateSearchViewDescription();
       void autoRefreshService?.configure(getConfig(), computeAutoRefreshConsumerVisible(), vscode.window.state.focused);
-      if (uiLanguageChanged || chatTurnTimelineModeChanged || toolDisplayModeChanged || longMessageFoldingChanged || imagesChanged) chatPanels.refreshPanels();
+      if (chatTurnTimelineModeChanged || toolDisplayModeChanged || longMessageFoldingChanged || imagesChanged) chatPanels.refreshPanels();
       else chatPanels.refreshI18n();
       if (nativeBookmarksChanged || timeGuideChanged || sourcesEnabledChanged) chatPanels.refreshNativeBookmarks();
-      if (resumeMethodChanged) chatPanels.refreshResumePresentation();
+      if (uiLanguageChanged || resumeMethodChanged) chatPanels.refreshResumePresentation();
       if (branchNavigationChanged) {
         chatPanels.refreshBranchNavigation();
       }
@@ -4339,9 +4341,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const choice = await vscode.window.showWarningMessage(
       t("searchHistory.clear.confirm", entries.length),
       { modal: true },
-      t("searchHistory.clear.button"),
+      { title: t("searchHistory.clear.button"), id: "clear" },
     );
-    if (choice !== t("searchHistory.clear.button")) return false;
+    if (choice?.id !== "clear") return false;
     await searchHistoryStore.clear(projectKey);
     chatPanels.refreshSearchHistoryCandidates();
     fileChangeHistoryPanels.refreshSearchHistoryCandidates();
@@ -4569,9 +4571,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const confirm = await vscode.window.showWarningMessage(
       sessions.length === 1 ? t("app.restoreArchivedConfirm") : t("app.restoreArchivedConfirmMulti", sessions.length),
       { modal: true },
-      t("app.restoreArchivedMove"),
+      { title: t("app.restoreArchivedMove"), id: "restore" },
     );
-    if (confirm !== t("app.restoreArchivedMove")) return { success: false };
+    if (confirm?.id !== "restore") return { success: false };
 
     const latestConfig = getConfig();
     const undoPairs: Array<{ archivedFsPath: string; activeFsPath: string }> = [];
@@ -4665,9 +4667,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const confirm = await vscode.window.showWarningMessage(
       sessions.length === 1 ? t("app.archiveSessionConfirm") : t("app.archiveSessionConfirmMulti", sessions.length),
       { modal: true },
-      t("app.archiveSessionMove"),
+      { title: t("app.archiveSessionMove"), id: "archive" },
     );
-    if (confirm !== t("app.archiveSessionMove")) return { success: false };
+    if (confirm?.id !== "archive") return { success: false };
 
     let archived = 0;
     let alreadyArchived = 0;
@@ -5170,8 +5172,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           total > OPEN_MULTI_LIMIT
             ? t("app.openMultiConfirmLimit", total, OPEN_MULTI_LIMIT)
             : t("app.openMultiConfirm", total);
-        const choice = await vscode.window.showWarningMessage(msg, { modal: true }, t("common.ok"));
-        if (choice !== t("common.ok")) return;
+        const choice = await vscode.window.showWarningMessage(msg, { modal: true }, "OK");
+        if (choice !== "OK") return;
         for (const it of limited) {
           await chatPanels.openSessionPreferExisting(it.session, {
             fallbackKind: "session",
@@ -5245,8 +5247,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           total > OPEN_MULTI_LIMIT
             ? t("app.openMultiConfirmLimit", total, OPEN_MULTI_LIMIT)
             : t("app.openMultiConfirm", total);
-        const choice = await vscode.window.showWarningMessage(msg, { modal: true }, t("common.ok"));
-        if (choice !== t("common.ok")) return;
+        const choice = await vscode.window.showWarningMessage(msg, { modal: true }, "OK");
+        if (choice !== "OK") return;
         for (const it of limited) {
           await transcriptProvider.openSessionTranscript(it.session, {
             preview: false,
@@ -6032,9 +6034,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const choice = await vscode.window.showWarningMessage(
         t("pins.removeMissingConfirm", missingPaths.length),
         { modal: true },
-        t("common.ok"),
+        "OK",
       );
-      if (choice !== t("common.ok")) return;
+      if (choice !== "OK") return;
 
       const { unpinned } = await pinStore.unpinMany(missingPaths);
       refreshViews();
@@ -6060,8 +6062,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
 
       const confirmMessage = t("trash.deleteConfirm");
-      const choice = await vscode.window.showWarningMessage(confirmMessage, { modal: true }, t("common.ok"));
-      if (choice !== t("common.ok")) return;
+      const choice = await vscode.window.showWarningMessage(confirmMessage, { modal: true }, "OK");
+      if (choice !== "OK") return;
 
       const result = await emptyTrashAndCleanupLegacy(context.globalStorageUri);
       await refreshStorageStats();
@@ -6094,9 +6096,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const choice = await vscode.window.showWarningMessage(
         t("handoff.cleanupConfirm", handoffCount, formatBytesForUi(handoffBytes)),
         { modal: true },
-        t("common.ok"),
+        "OK",
       );
-      if (choice !== t("common.ok")) return;
+      if (choice !== "OK") return;
 
       const result = await cleanupHandoffs(context.globalStorageUri, { mode: "all" });
       await refreshStorageStats();
@@ -7727,8 +7729,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
 
       if (sessions.length === 1) {
-        const choice = await vscode.window.showWarningMessage(t("app.promoteConfirm"), { modal: true }, t("common.ok"));
-        if (choice !== t("common.ok")) return;
+        const choice = await vscode.window.showWarningMessage(t("app.promoteConfirm"), { modal: true }, "OK");
+        if (choice !== "OK") return;
 
         const promoted = await promoteSessionCopyToToday(sessions[0]!, historyService, getConfig());
         await vscode.window.showInformationMessage(t("app.promoteDone"));
@@ -7755,9 +7757,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const choice = await vscode.window.showWarningMessage(
         t("app.promoteConfirmMulti", sessions.length),
         { modal: true },
-        t("common.ok"),
+        "OK",
       );
-      if (choice !== t("common.ok")) return;
+      if (choice !== "OK") return;
 
       const latestConfig = getConfig();
       let succeeded = 0;
@@ -8144,408 +8146,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register UI command aliases so menu labels can switch by extension language setting.
   // This keeps context menu text independent from VS Code display language.
-  const registerUiCommandAlias = (aliasId: string, targetId: string): void => {
-    context.subscriptions.push(
-      vscode.commands.registerCommand(aliasId, async (...args: unknown[]) => {
-        await vscode.commands.executeCommand(targetId, ...(args as any[]));
-      }),
-    );
-  };
-
-  const registerDisplayTargetMenuAliases = (aliasPrefix: string, targetPrefix: string): void => {
-    const suffixes = [
-      "ActiveVisible",
-      "ActiveVisibleChecked",
-      "VisibleAllLocations",
-      "VisibleAllLocationsChecked",
-      "ArchivedVisible",
-      "ArchivedVisibleChecked",
-      "HiddenAllLocations",
-      "HiddenAllLocationsChecked",
-      "All",
-      "AllChecked",
-    ] as const;
-    for (const suffix of suffixes) {
-      for (const language of ["zh-cn", "ja", "en"] as const) {
-        registerUiCommandAlias(
-          `codexHistoryViewer.ui.${language}.${aliasPrefix}${suffix}`,
-          `codexHistoryViewer.${targetPrefix}${suffix}`,
-        );
-      }
-    }
-  };
-
-  registerDisplayTargetMenuAliases("historyMenuDisplayTarget", "setHistoryDisplayTarget");
-  registerDisplayTargetMenuAliases("pinnedMenuDisplayTarget", "setPinnedDisplayTarget");
-
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.openSession", "codexHistoryViewer.openSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.openSession", "codexHistoryViewer.openSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.openSession", "codexHistoryViewer.openSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.showHistoryInsights", "codexHistoryViewer.showHistoryInsights");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.showHistoryInsights", "codexHistoryViewer.showHistoryInsights");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.showHistoryInsights", "codexHistoryViewer.showHistoryInsights");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.openCodexAgentParent", "codexHistoryViewer.openCodexAgentParent");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.openCodexAgentParent", "codexHistoryViewer.openCodexAgentParent");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.openCodexAgentParent", "codexHistoryViewer.openCodexAgentParent");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.openSessionMarkdown", "codexHistoryViewer.openSessionMarkdown");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.openSessionMarkdown", "codexHistoryViewer.openSessionMarkdown");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.openSessionMarkdown", "codexHistoryViewer.openSessionMarkdown");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.copySessionId", "codexHistoryViewer.copySessionId");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.copySessionId", "codexHistoryViewer.copySessionId");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.copySessionId", "codexHistoryViewer.copySessionId");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.copySessionFilePath",
-    "codexHistoryViewer.copySessionFilePath",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.copySessionFilePath",
-    "codexHistoryViewer.copySessionFilePath",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.copySessionFilePath",
-    "codexHistoryViewer.copySessionFilePath",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.revealSessionFile", "codexHistoryViewer.revealSessionFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.revealSessionFile", "codexHistoryViewer.revealSessionFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.revealSessionFile", "codexHistoryViewer.revealSessionFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.resumeSessionInCodex", "codexHistoryViewer.resumeSessionInCodex");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.resumeSessionInCodex", "codexHistoryViewer.resumeSessionInCodex");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.resumeSessionInCodex", "codexHistoryViewer.resumeSessionInCodex");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.resumeSessionInClaude", "codexHistoryViewer.resumeSessionInClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.resumeSessionInClaude", "codexHistoryViewer.resumeSessionInClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.resumeSessionInClaude", "codexHistoryViewer.resumeSessionInClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.resumeSessionInCodexCli", "codexHistoryViewer.resumeSessionInCodexCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.resumeSessionInCodexCli", "codexHistoryViewer.resumeSessionInCodexCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.resumeSessionInCodexCli", "codexHistoryViewer.resumeSessionInCodexCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.resumeSessionInClaudeCli", "codexHistoryViewer.resumeSessionInClaudeCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.resumeSessionInClaudeCli", "codexHistoryViewer.resumeSessionInClaudeCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.resumeSessionInClaudeCli", "codexHistoryViewer.resumeSessionInClaudeCli");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.handoffToClaude", "codexHistoryViewer.handoffToClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.handoffToClaude", "codexHistoryViewer.handoffToClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.handoffToClaude", "codexHistoryViewer.handoffToClaude");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.copyHandoffPrompt", "codexHistoryViewer.copyHandoffPrompt");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.copyHandoffPrompt", "codexHistoryViewer.copyHandoffPrompt");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.copyHandoffPrompt", "codexHistoryViewer.copyHandoffPrompt");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.copyHandoffPath", "codexHistoryViewer.copyHandoffPath");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.copyHandoffPath", "codexHistoryViewer.copyHandoffPath");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.copyHandoffPath", "codexHistoryViewer.copyHandoffPath");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.createHandoffFile", "codexHistoryViewer.createHandoffFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.createHandoffFile", "codexHistoryViewer.createHandoffFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.createHandoffFile", "codexHistoryViewer.createHandoffFile");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.openSessionHandoff", "codexHistoryViewer.openSessionHandoff");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.openSessionHandoff", "codexHistoryViewer.openSessionHandoff");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.openSessionHandoff", "codexHistoryViewer.openSessionHandoff");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.promoteSession", "codexHistoryViewer.promoteSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.promoteSession", "codexHistoryViewer.promoteSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.promoteSession", "codexHistoryViewer.promoteSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.restoreArchivedSession", "codexHistoryViewer.restoreArchivedSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.restoreArchivedSession", "codexHistoryViewer.restoreArchivedSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.restoreArchivedSession", "codexHistoryViewer.restoreArchivedSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.archiveSession", "codexHistoryViewer.archiveSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.archiveSession", "codexHistoryViewer.archiveSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.archiveSession", "codexHistoryViewer.archiveSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.archiveLocationActiveOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.archiveLocationActiveOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.archiveLocationActiveOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.archiveLocationAll", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.archiveLocationAll", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.archiveLocationAll", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.archiveLocationArchivedOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.archiveLocationArchivedOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.archiveLocationArchivedOnly", "codexHistoryViewer.filterArchiveLocation");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.historyDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.historyDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.historyDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.historyDisplayTargetAll",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.historyDisplayTargetAll",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.historyDisplayTargetAll",
-    "codexHistoryViewer.filterHistoryDisplayTarget",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinnedArchiveLocationActiveOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinnedArchiveLocationActiveOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinnedArchiveLocationActiveOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinnedArchiveLocationAll", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinnedArchiveLocationAll", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinnedArchiveLocationAll", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinnedArchiveLocationArchivedOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinnedArchiveLocationArchivedOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinnedArchiveLocationArchivedOnly", "codexHistoryViewer.filterPinnedArchiveLocation");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.pinnedDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.pinnedDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.pinnedDisplayTargetHiddenAllLocations",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.pinnedDisplayTargetAll",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.pinnedDisplayTargetAll",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.pinnedDisplayTargetAll",
-    "codexHistoryViewer.filterPinnedDisplayTarget",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinSession", "codexHistoryViewer.pinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinSession", "codexHistoryViewer.pinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinSession", "codexHistoryViewer.pinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.unpinSession", "codexHistoryViewer.unpinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.unpinSession", "codexHistoryViewer.unpinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.unpinSession", "codexHistoryViewer.unpinSession");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.hideSessions", "codexHistoryViewer.hideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.hideSessions", "codexHistoryViewer.hideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.hideSessions", "codexHistoryViewer.hideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.unhideSessions", "codexHistoryViewer.unhideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.unhideSessions", "codexHistoryViewer.unhideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.unhideSessions", "codexHistoryViewer.unhideSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.deleteSessions", "codexHistoryViewer.deleteSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.deleteSessions", "codexHistoryViewer.deleteSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.deleteSessions", "codexHistoryViewer.deleteSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.refresh", "codexHistoryViewer.refresh");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.refresh", "codexHistoryViewer.refresh");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.refresh", "codexHistoryViewer.refresh");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.refreshPinned", "codexHistoryViewer.refreshPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.refreshPinned", "codexHistoryViewer.refreshPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.refreshPinned", "codexHistoryViewer.refreshPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.refreshHistoryPane", "codexHistoryViewer.refreshHistoryPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.refreshHistoryPane", "codexHistoryViewer.refreshHistoryPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.refreshHistoryPane", "codexHistoryViewer.refreshHistoryPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.historyViewLatestCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.historyViewLatestCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.historyViewLatestCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.historyViewDateCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.historyViewDateCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.historyViewDateCurrent", "codexHistoryViewer.toggleHistoryViewMode");
-
-  const registerHistoryMenuAlias = (suffix: string, targetCommand: string): void => {
-    for (const lang of ["zh-cn", "ja", "en"] as const) {
-      registerUiCommandAlias(`codexHistoryViewer.ui.${lang}.${suffix}`, targetCommand);
-      registerUiCommandAlias(`codexHistoryViewer.ui.${lang}.${suffix}Checked`, targetCommand);
-    }
-  };
-
-  registerHistoryMenuAlias("historyMenuSortCreatedDesc", "codexHistoryViewer.setHistorySortCreatedDesc");
-  registerHistoryMenuAlias("historyMenuSortCreatedAsc", "codexHistoryViewer.setHistorySortCreatedAsc");
-  registerHistoryMenuAlias("historyMenuSortLastActivityDesc", "codexHistoryViewer.setHistorySortLastActivityDesc");
-  registerHistoryMenuAlias("historyMenuSortLastActivityAsc", "codexHistoryViewer.setHistorySortLastActivityAsc");
-  registerHistoryMenuAlias("historyMenuSortTitleAsc", "codexHistoryViewer.setHistorySortTitleAsc");
-  registerHistoryMenuAlias("historyMenuSortTitleDesc", "codexHistoryViewer.setHistorySortTitleDesc");
-  registerHistoryMenuAlias("historyMenuSortFileSizeDesc", "codexHistoryViewer.setHistorySortFileSizeDesc");
-  registerHistoryMenuAlias("historyMenuSortFileSizeAsc", "codexHistoryViewer.setHistorySortFileSizeAsc");
-  registerHistoryMenuAlias("historyMenuViewSessions", "codexHistoryViewer.showHistoryLatestView");
-  registerHistoryMenuAlias("historyMenuViewDate", "codexHistoryViewer.showHistoryDateView");
-  registerHistoryMenuAlias("historyMenuProjectDisplayList", "codexHistoryViewer.setHistoryProjectDisplayList");
-  registerHistoryMenuAlias("historyMenuProjectDisplayProject", "codexHistoryViewer.setHistoryProjectDisplayProject");
-  registerHistoryMenuAlias("historyMenuProjectScopeAll", "codexHistoryViewer.setHistoryProjectScopeAll");
-  registerHistoryMenuAlias(
-    "historyMenuProjectScopeCurrentGroup",
-    "codexHistoryViewer.setHistoryProjectScopeCurrentGroup",
-  );
-  registerHistoryMenuAlias("historyMenuSourceAll", "codexHistoryViewer.setHistorySourceFilterAll");
-  registerHistoryMenuAlias("historyMenuSourceCodex", "codexHistoryViewer.setHistorySourceFilterCodex");
-  registerHistoryMenuAlias("historyMenuSourceClaude", "codexHistoryViewer.setHistorySourceFilterClaude");
-  registerHistoryMenuAlias("historyMenuCompressionAll", "codexHistoryViewer.setHistoryCompressionAll");
-  registerHistoryMenuAlias("historyMenuCompressionCompressed", "codexHistoryViewer.setHistoryCompressionCompressed");
-  registerHistoryMenuAlias("historyMenuCompressionUncompressed", "codexHistoryViewer.setHistoryCompressionUncompressed");
-  for (const command of ["changeHistorySortOrder", "changePinnedSortMode", "configureHistoryView", "configurePinnedView"]) {
-    for (const language of ["ja", "en"]) {
-      registerUiCommandAlias(`codexHistoryViewer.ui.${language}.${command}`, `codexHistoryViewer.${command}`);
-    }
+  for (const { id, target } of UI_COMMAND_ALIASES) {
+    context.subscriptions.push(vscode.commands.registerCommand(id, async (...args: unknown[]) => {
+      await vscode.commands.executeCommand(target, ...args);
+    }));
   }
-  const registerPinnedMenuSortAlias = (suffix: string, targetCommand: string): void => {
-    for (const lang of ["zh-cn", "ja", "en"] as const) {
-      registerUiCommandAlias(`codexHistoryViewer.ui.${lang}.${suffix}`, targetCommand);
-      registerUiCommandAlias(`codexHistoryViewer.ui.${lang}.${suffix}Checked`, targetCommand);
-    }
-  };
-
-  registerPinnedMenuSortAlias("pinnedMenuSortPinnedAtDesc", "codexHistoryViewer.setPinnedSortPinnedAtDesc");
-  registerPinnedMenuSortAlias("pinnedMenuSortPinnedAtAsc", "codexHistoryViewer.setPinnedSortPinnedAtAsc");
-  registerPinnedMenuSortAlias("pinnedMenuSortCreatedDesc", "codexHistoryViewer.setPinnedSortCreatedDesc");
-  registerPinnedMenuSortAlias("pinnedMenuSortCreatedAsc", "codexHistoryViewer.setPinnedSortCreatedAsc");
-  registerPinnedMenuSortAlias("pinnedMenuSortLastActivityDesc", "codexHistoryViewer.setPinnedSortLastActivityDesc");
-  registerPinnedMenuSortAlias("pinnedMenuSortLastActivityAsc", "codexHistoryViewer.setPinnedSortLastActivityAsc");
-  registerPinnedMenuSortAlias("pinnedMenuSortTitleAsc", "codexHistoryViewer.setPinnedSortTitleAsc");
-  registerPinnedMenuSortAlias("pinnedMenuSortTitleDesc", "codexHistoryViewer.setPinnedSortTitleDesc");
-  registerPinnedMenuSortAlias("pinnedMenuSortFileSizeDesc", "codexHistoryViewer.setPinnedSortFileSizeDesc");
-  registerPinnedMenuSortAlias("pinnedMenuSortFileSizeAsc", "codexHistoryViewer.setPinnedSortFileSizeAsc");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.refreshStatusPane", "codexHistoryViewer.refreshStatusPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.refreshStatusPane", "codexHistoryViewer.refreshStatusPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.refreshStatusPane", "codexHistoryViewer.refreshStatusPane");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.search", "codexHistoryViewer.search");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.search", "codexHistoryViewer.search");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.search", "codexHistoryViewer.search");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchRerun", "codexHistoryViewer.searchRerun");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchRerun", "codexHistoryViewer.searchRerun");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchRerun", "codexHistoryViewer.searchRerun");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchRunRecent", "codexHistoryViewer.searchRunRecent");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchRunRecent", "codexHistoryViewer.searchRunRecent");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchRunRecent", "codexHistoryViewer.searchRunRecent");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchManageHistory", "codexHistoryViewer.searchManageHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchManageHistory", "codexHistoryViewer.searchManageHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchManageHistory", "codexHistoryViewer.searchManageHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchClearResults", "codexHistoryViewer.searchClearResults");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchClearResults", "codexHistoryViewer.searchClearResults");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchClearResults", "codexHistoryViewer.searchClearResults");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchFilterByTag", "codexHistoryViewer.searchFilterByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchFilterByTag", "codexHistoryViewer.searchFilterByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchFilterByTag", "codexHistoryViewer.searchFilterByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearSearchTagFilter", "codexHistoryViewer.clearSearchTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearSearchTagFilter", "codexHistoryViewer.clearSearchTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearSearchTagFilter", "codexHistoryViewer.clearSearchTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.filterPinned", "codexHistoryViewer.filterPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.filterPinned", "codexHistoryViewer.filterPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.filterPinned", "codexHistoryViewer.filterPinned");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.filterPinnedByTag", "codexHistoryViewer.filterPinnedByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.filterPinnedByTag", "codexHistoryViewer.filterPinnedByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.filterPinnedByTag", "codexHistoryViewer.filterPinnedByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearPinnedTagFilter", "codexHistoryViewer.clearPinnedTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearPinnedTagFilter", "codexHistoryViewer.clearPinnedTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearPinnedTagFilter", "codexHistoryViewer.clearPinnedTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearPinnedFilter", "codexHistoryViewer.clearPinnedFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearPinnedFilter", "codexHistoryViewer.clearPinnedFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearPinnedFilter", "codexHistoryViewer.clearPinnedFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinnedProjectDisplayList", "codexHistoryViewer.togglePinnedProjectDisplay");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinnedProjectDisplayList", "codexHistoryViewer.togglePinnedProjectDisplay");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinnedProjectDisplayList", "codexHistoryViewer.togglePinnedProjectDisplay");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.pinnedProjectDisplayProject",
-    "codexHistoryViewer.togglePinnedProjectDisplay",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.pinnedProjectDisplayProject",
-    "codexHistoryViewer.togglePinnedProjectDisplay",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.pinnedProjectDisplayProject",
-    "codexHistoryViewer.togglePinnedProjectDisplay",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.pinnedProjectScopeAll", "codexHistoryViewer.togglePinnedProjectScope");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.pinnedProjectScopeAll", "codexHistoryViewer.togglePinnedProjectScope");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.pinnedProjectScopeAll", "codexHistoryViewer.togglePinnedProjectScope");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.pinnedProjectScopeCurrentGroup",
-    "codexHistoryViewer.togglePinnedProjectScope",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.pinnedProjectScopeCurrentGroup",
-    "codexHistoryViewer.togglePinnedProjectScope",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.pinnedProjectScopeCurrentGroup",
-    "codexHistoryViewer.togglePinnedProjectScope",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.filterHistory", "codexHistoryViewer.filterHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.filterHistory", "codexHistoryViewer.filterHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.filterHistory", "codexHistoryViewer.filterHistory");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.filterHistoryByTag", "codexHistoryViewer.filterHistoryByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.filterHistoryByTag", "codexHistoryViewer.filterHistoryByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.filterHistoryByTag", "codexHistoryViewer.filterHistoryByTag");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearHistoryTagFilter", "codexHistoryViewer.clearHistoryTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearHistoryTagFilter", "codexHistoryViewer.clearHistoryTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearHistoryTagFilter", "codexHistoryViewer.clearHistoryTagFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.historyProjectDisplayList", "codexHistoryViewer.toggleHistoryProjectDisplay");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.historyProjectDisplayList", "codexHistoryViewer.toggleHistoryProjectDisplay");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.historyProjectDisplayList", "codexHistoryViewer.toggleHistoryProjectDisplay");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.historyProjectDisplayProject",
-    "codexHistoryViewer.toggleHistoryProjectDisplay",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.historyProjectDisplayProject",
-    "codexHistoryViewer.toggleHistoryProjectDisplay",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.historyProjectDisplayProject",
-    "codexHistoryViewer.toggleHistoryProjectDisplay",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.historyProjectScopeAll", "codexHistoryViewer.toggleHistoryProjectScope");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.historyProjectScopeAll", "codexHistoryViewer.toggleHistoryProjectScope");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.historyProjectScopeAll", "codexHistoryViewer.toggleHistoryProjectScope");
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.ja.historyProjectScopeCurrentGroup",
-    "codexHistoryViewer.toggleHistoryProjectScope",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.en.historyProjectScopeCurrentGroup",
-    "codexHistoryViewer.toggleHistoryProjectScope",
-  );
-  registerUiCommandAlias(
-    "codexHistoryViewer.ui.zh-cn.historyProjectScopeCurrentGroup",
-    "codexHistoryViewer.toggleHistoryProjectScope",
-  );
-  registerUiCommandAlias("codexHistoryViewer.ui.cycleHistorySourceAll", "codexHistoryViewer.cycleHistorySourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.cycleHistorySourceCodex", "codexHistoryViewer.cycleHistorySourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.cycleHistorySourceClaude", "codexHistoryViewer.cycleHistorySourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.pinnedSourceAll", "codexHistoryViewer.cyclePinnedSourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.pinnedSourceCodex", "codexHistoryViewer.cyclePinnedSourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.pinnedSourceClaude", "codexHistoryViewer.cyclePinnedSourceFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearHistoryFilter", "codexHistoryViewer.clearHistoryFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearHistoryFilter", "codexHistoryViewer.clearHistoryFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearHistoryFilter", "codexHistoryViewer.clearHistoryFilter");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.openSettings", "codexHistoryViewer.openSettings");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.openSettings", "codexHistoryViewer.openSettings");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.openSettings", "codexHistoryViewer.openSettings");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.exportSessions", "codexHistoryViewer.exportSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.exportSessions", "codexHistoryViewer.exportSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.exportSessions", "codexHistoryViewer.exportSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.importSessions", "codexHistoryViewer.importSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.importSessions", "codexHistoryViewer.importSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.importSessions", "codexHistoryViewer.importSessions");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchRunPreset", "codexHistoryViewer.searchRunPreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchRunPreset", "codexHistoryViewer.searchRunPreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchRunPreset", "codexHistoryViewer.searchRunPreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.searchSavePreset", "codexHistoryViewer.searchSavePreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.searchSavePreset", "codexHistoryViewer.searchSavePreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.searchSavePreset", "codexHistoryViewer.searchSavePreset");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.manageCustomTitle", "codexHistoryViewer.manageCustomTitle");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.manageCustomTitle", "codexHistoryViewer.manageCustomTitle");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.manageCustomTitle", "codexHistoryViewer.manageCustomTitle");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.manageProjectAlias", "codexHistoryViewer.manageProjectAlias");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.manageProjectAlias", "codexHistoryViewer.manageProjectAlias");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.manageProjectAlias", "codexHistoryViewer.manageProjectAlias");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.manageProjectAssociation", "codexHistoryViewer.manageProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.manageProjectAssociation", "codexHistoryViewer.manageProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.manageProjectAssociation", "codexHistoryViewer.manageProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.clearProjectAssociation", "codexHistoryViewer.clearProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.clearProjectAssociation", "codexHistoryViewer.clearProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.clearProjectAssociation", "codexHistoryViewer.clearProjectAssociation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.editSessionAnnotation", "codexHistoryViewer.editSessionAnnotation");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.editSessionAnnotation", "codexHistoryViewer.editSessionAnnotation");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.editSessionAnnotation", "codexHistoryViewer.editSessionAnnotation");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.renameTagGlobally", "codexHistoryViewer.renameTagGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.renameTagGlobally", "codexHistoryViewer.renameTagGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.renameTagGlobally", "codexHistoryViewer.renameTagGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.deleteTagsGlobally", "codexHistoryViewer.deleteTagsGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.deleteTagsGlobally", "codexHistoryViewer.deleteTagsGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.deleteTagsGlobally", "codexHistoryViewer.deleteTagsGlobally");
-  registerUiCommandAlias("codexHistoryViewer.ui.ja.undoLastAction", "codexHistoryViewer.undoLastAction");
-  registerUiCommandAlias("codexHistoryViewer.ui.en.undoLastAction", "codexHistoryViewer.undoLastAction");
-  registerUiCommandAlias("codexHistoryViewer.ui.zh-cn.undoLastAction", "codexHistoryViewer.undoLastAction");
 
   const completeInitialTreeLoad = (): void => {
     historyProvider.markInitialLoadComplete();
