@@ -6,7 +6,8 @@ import { tryReadSessionMeta } from "../sessions/sessionSummary";
 import type { SessionSource, SessionSummary } from "../sessions/sessionTypes";
 import { readSessionJsonlRecords } from "../sessions/codexHistoryBase";
 import { formatYmdHmInTimeZone, formatYmdHmsInTimeZone } from "../utils/dateUtils";
-import { extractCompactUserText, extractTaskSectionText, extractUserRequestText, normalizeWhitespace } from "../utils/textUtils";
+import { extractTaskSectionText, extractUserRequestText, normalizeWhitespace } from "../utils/textUtils";
+import { extractClaudeCompactUserText, isClaudeCompactSummaryRecord } from "../chat/claudeCompactSummary";
 import type { ChatAttachment } from "../chat/chatTypes";
 import {
   buildAttachmentSummaryLines,
@@ -29,6 +30,7 @@ type ResumeRole = "user" | "assistant";
 
 interface ResumeMessage {
   inputId?: string;
+  isContext?: boolean;
   role: ResumeRole;
   timestampIso?: string;
   text: string;
@@ -91,7 +93,7 @@ export async function renderResumeContext(fsPath: string, options: ResumeRenderO
   }
 
   const visibleRecent = recent.filter((message) => !message.inputId || queuedInputs.isVisible(message.inputId));
-  const taskCandidate = (taskText ?? visibleRecent.find((message) => message.role === "user")?.text ?? "").trim();
+  const taskCandidate = (taskText ?? visibleRecent.find((message) => message.role === "user" && !message.isContext)?.text ?? "").trim();
   const safeTask = taskCandidate.length > 0 ? taskCandidate : t("resume.noTask");
   let recentTrimmed = visibleRecent.slice(-maxMessages);
   let out = buildMarkdown({ fsPath, meta, historySource, timeZone, task: safeTask, recent: recentTrimmed });
@@ -147,7 +149,7 @@ function buildMarkdown(params: {
   }
 
   for (const m of recent) {
-    lines.push(`### ${t(`chat.role.${m.role}`)}`);
+    lines.push(`### ${m.isContext ? t("chat.label.context") : t(`chat.role.${m.role}`)}`);
     if (m.timestampIso) lines.push(`- ${t("transcript.timestamp")}: \`${formatIsoToLocal(m.timestampIso, timeZone, { withSeconds: true })}\``);
     lines.push("");
     lines.push(m.text);
@@ -262,16 +264,18 @@ async function collectClaudeResumeMessage(
   if (!combinedText) return true;
 
   if (role === "user") {
-    const compactUserText = extractCompactUserText(textNormalized);
+    const compactSummary = isClaudeCompactSummaryRecord(obj);
+    const compactUserText = extractClaudeCompactUserText(obj, textNormalized);
     const requestText =
-      compactUserText ?? extractTaskSectionText(textNormalized) ?? extractUserRequestText(textNormalized) ?? textNormalized;
-    const isContext = !compactUserText && extracted.attachments.length === 0;
+      compactSummary ? textNormalized : compactUserText ?? extractTaskSectionText(textNormalized) ?? extractUserRequestText(textNormalized) ?? textNormalized;
+    const isContext = compactSummary || (!compactUserText && extracted.attachments.length === 0);
     if (isContext && !includeContext) return true;
-    if (textNormalized) setTask(requestText);
+    if (!isContext && textNormalized) setTask(requestText);
     pushRecent(
       recent,
       {
         role: "user",
+        ...(isContext ? { isContext: true } : {}),
         timestampIso: typeof obj?.timestamp === "string" ? obj.timestamp : undefined,
         text: combineResumeText(attachmentSummary, requestText),
       },
