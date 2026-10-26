@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
   "files": {
-    "l10n/bundle.l10n.zh-cn.json": "7681f4fd42ff1562578dd95b9a05350c8880bec8a309312de78eae931379b6b4",
+    "l10n/bundle.l10n.zh-cn.json": "d615049a09fd79073145f5b59cd42d61c170297196d4f10cb6d6cfafbb0cde25",
     "package.nls.zh-cn.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
     "package.nls.zh.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
     "package.nls.zh-hans.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
-    "l10n/bundle.l10n.ja.json": "aec29c57fed671537e4e6be6d8577f6fe9cd80fed4148dbd6a0712f02d1d366b",
+    "l10n/bundle.l10n.ja.json": "45308eb37d0f9f21a07bced3ac78d1b652d2944d3eda507398426a6bd227c36a",
     "package.nls.ja.json": "06ec28d8d5205d558202c41a3abb638868399b5c7daa53a79b057ea243d7ae48",
-    "l10n/bundle.l10n.json": "ca59a7cc232baa898041d5484ffc3167361c390e153f9680c5d2ba2e43135ae3",
+    "l10n/bundle.l10n.json": "86936cae43592d1de382593a12220ab6ee7f6bdf3660d128fc58e2961c6025d4",
     "package.nls.en.json": "ffc398a1562a1b7f4f8c8771dde4c1f47770b92718b8b5133098a60024bfe5b6",
     "package.nls.json": "ffc398a1562a1b7f4f8c8771dde4c1f47770b92718b8b5133098a60024bfe5b6",
-    "src/generated/localeCatalog.ts": "b9edae20714f462071304e51c9f5de982f64286c1830ca5b51d2b57913b2c571",
-    "src/generated/defaultRuntimeMessages.ts": "bb48e11b1f6007b6f3185dac44a000c2e480182b6ad901eac5d8b77185af3ebf",
+    "src/generated/localeCatalog.ts": "cf742184bf3fbf33248166f572a4ca189359092fd8bbc5f75cdd1b787daabd56",
+    "src/generated/defaultRuntimeMessages.ts": "65d54b4539ed40104e5cab9dce304c3ca3935367acf6e07af48ef837d75390b3",
     "src/generated/uiCommandAliases.ts": "9bbe5a97683a1a65a1c501795492f91cb161569a2ec3d3ae025e32b99e249521",
     "src/generated/webviewI18n.ts": "224da05eaa7309036e61981b04da20a4d42dea6a12bc3ac8c2cd755ff7042d71",
-    "media/generated/localization.js": "44594649bccbf3a5061a6d325e74c4dff1de6008f5ca282b411412ba0d4ce5d4"
+    "media/generated/localization.js": "f7489e488b2830bd51c74389e7f18194243eb9fb11324861b327f42c020e1f5e"
   },
   "packageHash": "d46733949564c3d138052d54bdd990cd71a8d97fdd327d4af49dc8279dc15c45"
 }
