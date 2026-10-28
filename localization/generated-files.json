@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
   "files": {
-    "l10n/bundle.l10n.zh-cn.json": "d615049a09fd79073145f5b59cd42d61c170297196d4f10cb6d6cfafbb0cde25",
-    "package.nls.zh-cn.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
-    "package.nls.zh.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
-    "package.nls.zh-hans.json": "123da54a09ab88380eb1a1c38fe271ec51cb75671fd0934b6760bc23024ada31",
-    "l10n/bundle.l10n.ja.json": "45308eb37d0f9f21a07bced3ac78d1b652d2944d3eda507398426a6bd227c36a",
-    "package.nls.ja.json": "06ec28d8d5205d558202c41a3abb638868399b5c7daa53a79b057ea243d7ae48",
-    "l10n/bundle.l10n.json": "86936cae43592d1de382593a12220ab6ee7f6bdf3660d128fc58e2961c6025d4",
-    "package.nls.en.json": "ffc398a1562a1b7f4f8c8771dde4c1f47770b92718b8b5133098a60024bfe5b6",
-    "package.nls.json": "ffc398a1562a1b7f4f8c8771dde4c1f47770b92718b8b5133098a60024bfe5b6",
-    "src/generated/localeCatalog.ts": "cf742184bf3fbf33248166f572a4ca189359092fd8bbc5f75cdd1b787daabd56",
-    "src/generated/defaultRuntimeMessages.ts": "65d54b4539ed40104e5cab9dce304c3ca3935367acf6e07af48ef837d75390b3",
+    "l10n/bundle.l10n.zh-cn.json": "74cdaee6a82a673cf5422e3d9f394a66b05837000579c76bfb4ceb6c8d287f73",
+    "package.nls.zh-cn.json": "6b0c648220e5fc5fa544d3166d7e45db8c17b9c0fcbeef85cfac52d7350b76e7",
+    "package.nls.zh.json": "6b0c648220e5fc5fa544d3166d7e45db8c17b9c0fcbeef85cfac52d7350b76e7",
+    "package.nls.zh-hans.json": "6b0c648220e5fc5fa544d3166d7e45db8c17b9c0fcbeef85cfac52d7350b76e7",
+    "l10n/bundle.l10n.ja.json": "daba0555fe89a11a5cbb1382ef34177f2e56efa813898eb498e4b40a0de6db69",
+    "package.nls.ja.json": "eec2200b05e969d2e3e4162a6920bdcbbe707fe49aac2c81ff6b3c45c4dad448",
+    "l10n/bundle.l10n.json": "6c3830e6bdb1bcf08d8abf167e3485481411f731367945c6f3a62268271564c3",
+    "package.nls.en.json": "234b62dff1e94899f2b0ed4537a9b30c32c1da9900fb38e393da605b6b58c1d0",
+    "package.nls.json": "234b62dff1e94899f2b0ed4537a9b30c32c1da9900fb38e393da605b6b58c1d0",
+    "src/generated/localeCatalog.ts": "23591ad12c8801dcdb0b30e33da3c5fb1e0126ac60f668be37599ac59d51c050",
+    "src/generated/defaultRuntimeMessages.ts": "368bc53fe71a243487b625e756c0855af949c081aa578226bfafdab20f1130ec",
     "src/generated/uiCommandAliases.ts": "9bbe5a97683a1a65a1c501795492f91cb161569a2ec3d3ae025e32b99e249521",
     "src/generated/webviewI18n.ts": "224da05eaa7309036e61981b04da20a4d42dea6a12bc3ac8c2cd755ff7042d71",
-    "media/generated/localization.js": "f7489e488b2830bd51c74389e7f18194243eb9fb11324861b327f42c020e1f5e"
+    "media/generated/localization.js": "45b613a356efca3bc818afad2138577979a9723bcce8ca490842b2ac6406a3e4"
   },
-  "packageHash": "d46733949564c3d138052d54bdd990cd71a8d97fdd327d4af49dc8279dc15c45"
+  "packageHash": "ba09a124b8fa2eb2686303debb08d1cb5307edde4b63ece4c1bd45471df16f28"
 }
