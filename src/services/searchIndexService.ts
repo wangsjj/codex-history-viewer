@@ -3,6 +3,7 @@ import { isClaudeCompactSummaryRecord } from "../chat/claudeCompactSummary";
 import { extractClaudeProgress, isClaudeProgressId } from "../chat/claudeProgress";
 import { ClaudeQueuedInputTracker, isClaudeQueuedInputId } from "../chat/claudeQueuedInput";
 import * as path from "node:path";
+import { performance } from "node:perf_hooks";
 import * as vscode from "vscode";
 import { extractClaudeTerminalOutput, getClaudeTerminalOutputText } from "../chat/claudeTerminalOutput";
 import type { SearchIndexToolContent } from "../settings";
@@ -12,9 +13,9 @@ import { claudeChangeSearchText, readClaudeEditResults, readClaudeResultChanges 
 import {
   formatJsonReadOrDropCorruptDebug,
   isFileNotFoundError,
-  readJsonOrDropCorrupt,
-  writeJson,
 } from "../storage/jsonStorage";
+import { readSearchIndex, writeSearchIndex } from "../storage/searchIndexStorage";
+import { packSearchMessages, type PackedSearchMessageReader } from "./packedSearchMessages";
 import { normalizeWhitespace } from "../utils/textUtils";
 import {
   buildAttachmentSearchText,
@@ -59,7 +60,7 @@ import {
   readCodexRolloutRecordKind,
 } from "../sessions/codexRolloutCompatibility";
 
-const SEARCH_INDEX_FILE_VERSION = 35;
+const SEARCH_INDEX_FILE_VERSION = 36;
 const SEARCH_STAT_CONCURRENCY = 8;
 const MAX_COMMAND_META_LENGTH = 1000;
 const MAX_RECURSIVE_META_DEPTH = 5;
@@ -84,7 +85,7 @@ export interface IndexedFileChangeHint {
   readonly hasDiffLikeContent: boolean;
 }
 
-interface SearchIndexEntryV1 {
+export interface SearchIndexEntryV1 {
   readonly fsPath: string;
   readonly mtimeMs: number;
   readonly size: number;
@@ -96,6 +97,7 @@ interface SearchIndexEntryV1 {
 export interface SearchIndexReadSnapshot {
   readonly getMessages: (cacheKey: string) => readonly IndexedSearchMessage[] | null;
   readonly getFileChangeHints: (cacheKey: string) => readonly IndexedFileChangeHint[] | null;
+  readonly iterateToolTexts?: (cacheKey: string, checkpoint: () => Promise<void>) => AsyncIterable<string>;
 }
 
 interface SearchIndexContext {
@@ -108,7 +110,7 @@ interface SearchIndexContext {
   indexToolContent: SearchIndexToolContent;
 }
 
-interface SearchIndexCacheContext {
+export interface SearchIndexCacheContext {
   codexSessionsRoot: string;
   codexArchivedSessionsRoot?: string;
   claudeSessionsRoot: string;
@@ -259,7 +261,7 @@ export class SearchIndexService {
       indexToolContent: params.indexToolContent,
     };
     throwIfCancelled(token);
-    let workingState = await this.loadWorkingState(context, !!forceRebuild, performanceProbe);
+    let workingState = await this.loadWorkingState(context, !!forceRebuild, performanceProbe, token);
     throwIfCancelled(token);
 
     let dirty = !!forceRebuild;
@@ -357,14 +359,14 @@ export class SearchIndexService {
         throwIfCancelled(token);
         if (verified.kind === "transient") throw new SearchIndexObservationIncompleteError();
         if (verified.kind === "ok" && areSameSearchFileObservation(input, verified)) {
-          nextEntry = freezeSearchIndexEntry({
+          nextEntry = await freezeSearchIndexEntry({
             fsPath: session.fsPath,
             mtimeMs: input.mtimeMs,
             size: input.size,
             ...(input.historySignature ? { historySignature: input.historySignature } : {}),
             messages: indexed.messages,
             fileChangeHints: indexed.fileChangeHints,
-          });
+          }, token, performanceProbe);
           break;
         }
         if (attempt === 0 && verified.kind === "ok") {
@@ -431,7 +433,7 @@ export class SearchIndexService {
     }
     if (dirty) {
       const writeStartedAt = nowMs();
-      await this.save(workingState, () => throwIfCancelled(token), performanceProbe);
+      await this.save(workingState, () => throwIfCancelled(token), performanceProbe, token);
       writeMs = elapsedMs(writeStartedAt);
     }
     const readSnapshot = this.publishWorkingState(workingState, readableKeys, performanceProbe);
@@ -467,6 +469,7 @@ export class SearchIndexService {
     nextContext: SearchIndexContext,
     forceRebuild: boolean,
     performanceProbe?: PerformanceProbe,
+    token?: vscode.CancellationToken,
   ): Promise<SearchIndexWorkingState> {
     const normalizedContext = normalizeContext(nextContext);
     if (forceRebuild) {
@@ -481,7 +484,7 @@ export class SearchIndexService {
       return { context: this.context, entries: this.entries, sharesPublishedEntries: true };
     }
 
-    const raw = await this.readCacheFile(performanceProbe);
+    const raw = await this.readCacheFile(normalizedContext, performanceProbe, token);
     if (!isValidCacheFile(raw) || !isSameContext(raw.context, normalizedContext)) {
       performanceProbe?.add("mapMaterializationCount");
       return { context: normalizedContext, entries: new Map(), sharesPublishedEntries: false };
@@ -490,7 +493,7 @@ export class SearchIndexService {
     performanceProbe?.add("mapMaterializationCount");
     const entries = new Map<string, SearchIndexEntryV1>();
     for (const [key, entry] of Object.entries(raw.entries)) {
-      entries.set(key, freezeSearchIndexEntry(entry));
+      entries.set(key, entry);
     }
     return {
       context: normalizeContext(raw.context),
@@ -499,8 +502,17 @@ export class SearchIndexService {
     };
   }
 
-  private async readCacheFile(performanceProbe?: PerformanceProbe): Promise<SearchIndexFileV2 | null> {
-    const outcome = await readJsonOrDropCorrupt<SearchIndexFileV2>(this.cacheUri, { performanceProbe });
+  private async readCacheFile(
+    expectedContext: SearchIndexContext,
+    performanceProbe?: PerformanceProbe,
+    token?: vscode.CancellationToken,
+  ): Promise<unknown> {
+    const outcome = await readSearchIndex(this.cacheUri, {
+      performanceProbe,
+      token,
+      acceptHeader: (header) => isValidCacheHeader(header) && isSameContext(header.context, expectedContext),
+      mapEntry: (entry) => isValidCacheEntry(entry) ? freezeSearchIndexEntry(entry, token, performanceProbe) : undefined,
+    });
     const { result } = outcome;
     if (result.ok) return result.value;
     const debugMessage = formatJsonReadOrDropCorruptDebug("search.index readCache", outcome);
@@ -556,16 +568,15 @@ export class SearchIndexService {
     state: SearchIndexWorkingState,
     beforeCommit: () => void,
     performanceProbe?: PerformanceProbe,
+    token?: vscode.CancellationToken,
   ): Promise<void> {
-    const entries: Record<string, SearchIndexEntryV1> = {};
-    for (const [key, value] of state.entries) entries[key] = value;
-    const payload: SearchIndexFileV2 = {
+    const payload = {
       version: SEARCH_INDEX_FILE_VERSION,
       context: state.context,
-      entries,
+      entries: state.entries,
     };
-    // Search index files can grow large, so save without pretty-printing to reduce size.
-    await writeJson(this.cacheUri, payload, { pretty: false, beforeCommit, performanceProbe });
+    // Preserve the immutable working map while the storage layer emits bounded records.
+    await writeSearchIndex(this.cacheUri, payload, { beforeCommit, performanceProbe, token });
   }
 }
 
@@ -686,6 +697,21 @@ function createSearchIndexReadSnapshot(
       snapshotEntries.get(cacheKey)?.messages ?? null,
     getFileChangeHints: (cacheKey: string): readonly IndexedFileChangeHint[] | null =>
       snapshotEntries.get(cacheKey)?.fileChangeHints ?? null,
+    iterateToolTexts: async function* (cacheKey: string, checkpoint: () => Promise<void>): AsyncIterable<string> {
+      await checkpoint();
+      const entry = snapshotEntries.get(cacheKey);
+      if (!entry) return;
+      const reader = packedSearchIndexEntries.get(entry);
+      if (reader) {
+        yield* reader.iterateToolTexts(checkpoint);
+        return;
+      }
+      // Preserve internal raw-entry compatibility without inspecting ordinary message text.
+      for (const message of entry.messages) {
+        await checkpoint();
+        if (message.source === "toolArguments" || message.source === "toolOutput") yield message.text;
+      }
+    },
   });
 }
 
@@ -791,19 +817,24 @@ function areSameStringSets(left: ReadonlySet<string>, right: ReadonlySet<string>
   return true;
 }
 
-function freezeSearchIndexEntry(entry: SearchIndexEntryV1): SearchIndexEntryV1 {
-  const messages = Object.freeze(
-    entry.messages.map((message) =>
-      Object.freeze({
-        messageIndex: message.messageIndex,
-        role: message.role,
-        source: message.source,
-        text: message.text,
-        ...(message.inputId ? { inputId: message.inputId } : {}),
-        ...(message.progressId ? { progressId: message.progressId, progressKind: message.progressKind } : {}),
-      }),
-    ),
-  );
+const packedSearchIndexEntries = new WeakMap<SearchIndexEntryV1, PackedSearchMessageReader>();
+
+async function freezeSearchIndexEntry(
+  entry: SearchIndexEntryV1,
+  token?: vscode.CancellationToken,
+  performanceProbe?: PerformanceProbe,
+): Promise<SearchIndexEntryV1> {
+  if (packedSearchIndexEntries.has(entry)) return entry;
+  let lastYield = performance.now();
+  const messages = await packSearchMessages(entry.messages, async () => {
+    throwIfCancelled(token);
+    if (performance.now() - lastYield < 8) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    performanceProbe?.add("cooperativeYieldCount");
+    performanceProbe?.observeMemory();
+    lastYield = performance.now();
+    throwIfCancelled(token);
+  });
   const fileChangeHints = entry.fileChangeHints
     ? Object.freeze(
         entry.fileChangeHints.map((hint) =>
@@ -817,14 +848,15 @@ function freezeSearchIndexEntry(entry: SearchIndexEntryV1): SearchIndexEntryV1 {
         ),
       )
     : undefined;
-  return Object.freeze({
+  const frozen = Object.freeze(Object.defineProperty({
     fsPath: entry.fsPath,
     mtimeMs: entry.mtimeMs,
     size: entry.size,
     ...(entry.historySignature ? { historySignature: entry.historySignature } : {}),
-    messages,
     ...(fileChangeHints ? { fileChangeHints } : {}),
-  });
+  }, "messages", { enumerable: false, get: messages })) as SearchIndexEntryV1;
+  packedSearchIndexEntries.set(frozen, messages);
+  return frozen;
 }
 
 function throwIfCancelled(token?: vscode.CancellationToken): void {
@@ -1161,7 +1193,7 @@ async function indexClaudeRecord(obj: any, state: BuildState, lineIndex: number)
   const rawContent = getClaudeMessageContent(obj);
   const pastedPrompt = role === "user" ? await state.pastedPromptResolver?.resolve(obj, rawContent) : undefined;
   const controlContent = selectClaudeControlContent(rawContent, pastedPrompt);
-  if (role === "user" && extractClaudeRequestInterruptionContent(controlContent)) return true;
+  if (role === "user" && extractClaudeRequestInterruptionContent(controlContent, obj)) return true;
   if (role === "user" && extractClaudeLocalCommandOutputContent(controlContent)) return true;
   const terminalOutput = extractClaudeTerminalOutput(obj, controlContent);
   if (terminalOutput) {
@@ -1729,7 +1761,7 @@ function shouldIndexToolOutputs(mode: SearchIndexToolContent): boolean {
   return mode === "toolCallsAndOutputs";
 }
 
-function isValidCacheFile(value: unknown): value is SearchIndexFileV2 {
+function isValidCacheHeader(value: unknown): value is Pick<SearchIndexFileV2, "version" | "context"> {
   if (!value || typeof value !== "object") return false;
   const obj = value as any;
   if (obj.version !== SEARCH_INDEX_FILE_VERSION) return false;
@@ -1745,6 +1777,12 @@ function isValidCacheFile(value: unknown): value is SearchIndexFileV2 {
   }
   if (typeof obj.context.includeClaude !== "boolean") return false;
   if (obj.context.indexToolContent !== undefined && !isSearchIndexToolContent(obj.context.indexToolContent)) return false;
+  return true;
+}
+
+function isValidCacheFile(value: unknown): value is SearchIndexFileV2 {
+  if (!isValidCacheHeader(value)) return false;
+  const obj = value as SearchIndexFileV2;
   if (!obj.entries || typeof obj.entries !== "object") return false;
 
   for (const [key, entry] of Object.entries(obj.entries as Record<string, unknown>)) {
@@ -1795,6 +1833,7 @@ function normalizePathKey(fsPath: string): string {
 
 function isValidCacheEntry(value: unknown): value is SearchIndexEntryV1 {
   if (!value || typeof value !== "object") return false;
+  if (packedSearchIndexEntries.has(value as SearchIndexEntryV1)) return true;
   const obj = value as any;
   if (typeof obj.fsPath !== "string") return false;
   if (typeof obj.mtimeMs !== "number" || !Number.isFinite(obj.mtimeMs)) return false;

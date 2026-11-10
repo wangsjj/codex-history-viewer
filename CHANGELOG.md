@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.20.2] - 2026-11-10
+
+### Fixed
+
+- Fixed excessive memory usage when processing large search indexes, which could crash the extension host and cause repeated index rebuilds. ([#23](https://github.com/HizTam/codex-history-viewer/issues/23))
+- Fixed some messages and tool results preserved during compaction in Claude Code child agent histories being missing from the Session Viewer, search, and statistics.
+- Fixed Claude Code session and agent process shutdown interruptions being incorrectly classified in the Session Viewer, search, and statistics.
+- Fixed **Open Session as Markdown** treating Claude Code interruptions as numbered user messages, so subsequent message numbers match the Session Viewer.
+- Fixed incorrect diff message numbers and navigation targets in **File AI Change History** when Claude Code histories contain messages with only images or documents.
+
+Note: Caches are rebuilt automatically when needed after updating, so the first history load, search, or use of File AI Change History or History Insights may take longer.
+
+## [2.20.1] - 2026-11-07
+
+### Fixed
+
+- Fixed search index save and load failures that could make full-text search unavailable with large history datasets. ([#21](https://github.com/HizTam/codex-history-viewer/issues/21))
+- Fixed **Open in History** in **File AI Change History** opening an additional dedicated tab when the same session was already open in a temporary tab.
+- Fixed earlier navigation requests overriding the destination when opening changes in quick succession from **File AI Change History**.
+
+Note: The search cache format has changed. The cache is rebuilt automatically when needed, so the first search or File AI Change History load after updating may take longer.
+
 ## [2.20.0] - 2026-10-27
 
 ### Added

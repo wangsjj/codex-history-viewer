@@ -2428,6 +2428,13 @@
     "settingsPanel.setting.history.defaultViewMode.description": "选择历史记录的默认视图。",
     "settingsPanel.option.history.defaultViewMode.date.label": "按日期",
     "settingsPanel.option.history.defaultViewMode.sessionsList.label": "会话列表",
-    "viewOptions.view.sessionsList": "会话列表"
+    "viewOptions.view.sessionsList": "会话列表",
+    "chat.systemEvent.interrupted.genericDescription": "上一条响应已中断。",
+    "chat.systemEvent.interrupted.sessionEndedTitle": "会话已结束",
+    "chat.systemEvent.interrupted.sessionEndedDescription": "响应完成前会话已结束。这不是用户主动停止的请求。",
+    "chat.systemEvent.interrupted.sessionEndedReason": "会话在完成前结束",
+    "chat.systemEvent.interrupted.agentProcessEndedTitle": "代理进程已结束",
+    "chat.systemEvent.interrupted.agentProcessEndedDescription": "运行代理的进程在完成前停止，且没有返回结果。这不是用户主动停止的请求。",
+    "chat.systemEvent.interrupted.agentProcessEndedReason": "代理进程在完成前结束"
   }
 }

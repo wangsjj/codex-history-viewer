@@ -14,6 +14,7 @@ import {
   detectClaudeMaterializedMessageRole,
   extractClaudeLocalCommandOutputContent,
   extractClaudeMessageContent,
+  extractClaudeRequestInterruptionContent,
   extractCodexCompactUserText,
   extractCodexMessageContent,
   isCodexProtocolContextContent,
@@ -255,6 +256,7 @@ async function collectClaudeResumeMessage(
   const rawContent = getClaudeMessageContent(obj);
   const pastedPrompt = role === "user" ? await pastedPromptResolver?.resolve(obj, rawContent) : undefined;
   const controlContent = selectClaudeControlContent(rawContent, pastedPrompt);
+  if (role === "user" && extractClaudeRequestInterruptionContent(controlContent, obj)) return true;
   if (role === "user" && extractClaudeLocalCommandOutputContent(controlContent)) return true;
   if (extractClaudeTerminalOutput(obj, controlContent)) return true;
   const extracted = await extractClaudeMessageContent(rawContent, undefined, { enabled: false }, { role, pastedPrompt, record: obj });
@@ -265,7 +267,7 @@ async function collectClaudeResumeMessage(
 
   if (role === "user") {
     const compactSummary = isClaudeCompactSummaryRecord(obj);
-    const compactUserText = extractClaudeCompactUserText(obj, textNormalized);
+    const compactUserText = extractClaudeCompactUserText(obj, textNormalized, pastedPrompt);
     const requestText =
       compactSummary ? textNormalized : compactUserText ?? extractTaskSectionText(textNormalized) ?? extractUserRequestText(textNormalized) ?? textNormalized;
     const isContext = compactSummary || (!compactUserText && extracted.attachments.length === 0);

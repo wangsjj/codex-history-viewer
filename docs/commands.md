@@ -144,6 +144,10 @@ Starting with 2.15.0, saving a search offers **Query only** or **Query and filte
 
 The **File AI Change History** icon on Session Viewer diff cards opens the same view at the selected change, initially loading up to 100 nearby changes. Use **Load more** for the remaining history. A row combining multiple changes jumps to its first included change; an unavailable match displays a notice. The icon is available on both collapsed and expanded file rows when the target can be resolved to a file in the current workspace, independently of the optional Explorer context-menu setting.
 
+**Open in History** on a change card focuses an existing Session Viewer tab for that history and reveals the selected diff, preserving its temporary or dedicated mode and editor group. If no matching tab is open, it creates a dedicated tab in the current editor group.
+
+When opening changes in quick succession, the last selected change takes precedence.
+
 ## History Insights and Agent Runs
 
 | Command (EN label) | Command ID | Description |
@@ -182,6 +186,8 @@ Saved Claude Code progress updates are displayed directly, while thinking text i
 Files sent by Claude Code show file names, descriptions, and delivery status in the Session Viewer. Click a valid file name to open the local file in VS Code; this card action has no Command Palette command. File contents are not loaded automatically. Recorded paths and descriptions follow the tool-call search setting, and results follow the tool-output search setting. Sending a file alone is not a file change.
 
 Claude Code conversation compaction summaries are available with **Show details** and **Open Session as Markdown** as context. Opening a session at a specific message, including an existing bookmark's position, turns on details if that message would otherwise be hidden. These summaries are excluded from ordinary user-message search, previews, and request counts, and are not treated as the current request in **Copy Quick Prompt** or Handoff.
+
+Messages and tool results explicitly preserved during compaction in Claude Code child agent histories remain available in the Session Viewer, search, and analysis. Recognized session and agent process shutdown interruptions are excluded from ordinary user-message search and human request counts, including request extraction for **Copy Quick Prompt** and Handoff.
 
 User text sent while Claude Code was running appears as **Additional user input** when its human origin is recorded. These cards also support search, bookmarks, copying, and **Open Session as Markdown** without enabling **Show details**. Repeated delivery records and matching ordinary user messages appear only once, and existing message numbers and bookmarks are preserved.
 

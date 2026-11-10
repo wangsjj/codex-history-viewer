@@ -103,6 +103,7 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
   private readonly stateByPanel = new WeakMap<vscode.WebviewPanel, FileChangeHistoryPanelState>();
   private readonly bookmarkTargetsByPanel = new WeakMap<vscode.WebviewPanel, Map<string, BookmarkTarget>>();
   private readonly readyByPanel = new WeakMap<vscode.WebviewPanel, boolean>();
+  private openHistoryRequest?: object;
   private readonly panelIconPath: { light: vscode.Uri; dark: vscode.Uri };
 
   constructor(
@@ -441,7 +442,18 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
           progressCancellation = progressToken.onCancellationRequested(() => cancellation.cancel());
           if (progressToken.isCancellationRequested) cancellation.cancel();
           const token = cancellation.token;
+          const getCurrentState = (): FileChangeHistoryPanelState | undefined => {
+            const current = this.stateByPanel.get(panel);
+            if (!current || current.generation !== generation) return undefined;
+            if (token.isCancellationRequested) throw new vscode.CancellationError();
+            if (this.hasReplacedCodexMainline(sessionInventory)) {
+              this.refreshCodexRolloutMainlines();
+              return undefined;
+            }
+            return current;
+          };
           await this.sendLoading(panel, "syncIndex");
+          if (!getCurrentState()) return;
           const indexStartedAt = nowMs();
           const searchIndexSnapshot = await this.searchIndexService.ensureUpToDate({
             index: historyIndex,
@@ -458,42 +470,41 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
           });
           indexMs = elapsedMs(indexStartedAt);
 
-          const current = this.stateByPanel.get(panel);
-          if (!current || current.generation !== generation) return;
-          if (this.hasReplacedCodexMainline(sessionInventory)) {
-            this.refreshCodexRolloutMainlines();
-            return;
-          }
+          if (!getCurrentState()) return;
           await this.sendLoading(panel, "collectCandidates");
+          const current = getCurrentState();
+          if (!current) return;
           const candidateStartedAt = nowMs();
-          const candidates = prioritizeFileChangeHistoryOrigin(this.fileChangeHistoryService.buildCandidates({
+          const rankedCandidates = await this.fileChangeHistoryService.buildCandidates({
             index: historyIndex,
             searchIndexSnapshot,
             target: current.target,
             config,
-          }), current.navigationOrigin);
+            token,
+          });
           candidateMs = elapsedMs(candidateStartedAt);
+          const rankedState = getCurrentState();
+          if (!rankedState) return;
+          const candidates = prioritizeFileChangeHistoryOrigin(rankedCandidates, rankedState.navigationOrigin);
 
           await this.sendLoading(panel, "parseSessions");
+          const parseState = getCurrentState();
+          if (!parseState) return;
           const loadStartedAt = nowMs();
           const loaded = await this.fileChangeHistoryService.loadCards({
-            target: current.target,
+            target: parseState.target,
             candidates,
             nextCandidateIndex: 0,
             pendingCards: [],
             limit,
             sessionInventory: historyIndex.historySources ?? historyIndex.sessions,
-            origin: current.navigationOrigin,
+            origin: parseState.navigationOrigin,
             token,
           });
           loadMs = elapsedMs(loadStartedAt);
 
-          const latest = this.stateByPanel.get(panel);
-          if (!latest || latest.generation !== generation) return;
-          if (this.hasReplacedCodexMainline(sessionInventory)) {
-            this.refreshCodexRolloutMainlines();
-            return;
-          }
+          const latest = getCurrentState();
+          if (!latest) return;
           const sortedCards = sortFileChangeHistoryCards(loaded.cards);
           this.stateByPanel.set(panel, {
             ...latest,
@@ -817,6 +828,12 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
     if (!state || !cardId) return;
     const card = state.cards.find((item) => item.id === cardId);
     if (!card) return;
+    // Keep only the latest navigation across file-history panels and reject invalidated source state.
+    const request = {};
+    const generation = state.generation;
+    this.openHistoryRequest = request;
+    const isRequestCurrent = (): boolean =>
+      this.openHistoryRequest === request && this.stateByPanel.get(panel)?.generation === generation;
     const session = this.historyService.findByFsPath(card.sessionFsPath);
     if (!session) {
       void vscode.window.showErrorMessage(t("fileChangeHistory.error.openHistoryFailed", t("app.openSessionFailed")));
@@ -832,13 +849,15 @@ export class FileChangeHistoryPanelManager implements vscode.Disposable {
       entryId: card.entry.id,
     };
     try {
-      await this.chatPanels.openSession(session, {
-        kind: "session",
+      await this.chatPanels.openSessionPreferExisting(session, {
+        fallbackKind: "session",
         revealMessageIndex: card.messageIndex,
         revealTarget,
-        viewColumn: vscode.ViewColumn.Active,
+        preserveFocus: false,
+        isRequestCurrent,
       });
     } catch (error) {
+      if (!isRequestCurrent()) return;
       const detail = getErrorDetail(error);
       void vscode.window.showErrorMessage(detail
         ? t("fileChangeHistory.error.openHistoryFailed", detail)

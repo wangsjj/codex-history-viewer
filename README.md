@@ -2,7 +2,7 @@
 
 Browse, search, organize, and resume past Codex CLI / Claude Code sessions through the official VS Code extensions or prepared CLI commands.
 
-Latest release: **2.20.0** (2026-10-27).
+Latest release: **2.20.2** (2026-11-10).
 
 ![Codex History Viewer screenshot](media/screenshot.png)
 
@@ -113,11 +113,15 @@ Claude Code file changes use recorded edit results to distinguish applied change
 
 Request interruptions from Codex and Claude Code render as dedicated timeline cards. When available, details include reason, duration, turn ID, rollback state, and rolled-back turn count.
 
+Recognized Claude Code session and agent process shutdown interruptions are excluded from ordinary user-message search and human request counts, including request extraction for Resume and Handoff.
+
 Claude Code peer and coordinator messages received from other sessions render as dedicated cross-session cards. They remain searchable as assistant-derived content and are excluded from previews, Resume, Handoff, and human-message analysis.
 
 Claude Code internal task notifications and agent reminders appear as **Task notification** and **Internal reminder** cards. Task notifications include an expandable **Notification details** section. Notifications are displayed without duplicating the same notification recorded in another format or changing existing message numbers. Their text remains readable and copyable, while they are excluded from ordinary user-message search, counts, previews, and request extraction for Resume and Handoff.
 
 Claude Code conversation compaction summaries are retained as context, available with **Show details** and in Markdown transcripts. They are excluded from ordinary user-message search, previews, and request counts.
+
+Messages and tool results explicitly preserved during compaction in Claude Code child agent histories remain available in the Session Viewer, search, and statistics.
 
 Codex page-selection context is likewise kept out of ordinary user messages; its raw text remains available in the detail view.
 
@@ -155,6 +159,10 @@ For files sent by Claude Code, Search includes recorded file paths and descripti
 ## Search
 
 Search is local, cancellable, and backed by an incremental search index. It can search message text, configured tool metadata, titles, tags, notes, and attachment metadata.
+
+Updates may require cached history, search, or analysis data to be rebuilt automatically. The first history load, search, or use of File AI Change History or History Insights after such an update may take longer.
+
+Local file-backed search caches use incremental reads and writes. Indexed message text is decoded when needed to reduce JavaScript heap usage. Large histories still require RAM and disk space, and individual large sessions can temporarily use additional memory during loading or searching.
 
 Saved Claude Code progress updates and thinking text are included in the Assistant role. Selecting a matching result opens the corresponding card and expands thinking text when needed. In-page search also includes collapsed thinking text.
 
@@ -371,10 +379,13 @@ For the primary user-facing commands with descriptions, see:
 - If the official Codex extension stops reopening a session, try `Developer: Reload Webviews`, then `Developer: Restart Extension Host`, then `Developer: Reload Window`.
 - **Move to Archive** and **Move to Codex History** use the official Codex provider when available. Moving archived sessions back to normal history can fall back to a filesystem move if needed.
 
-## What's New in 2.20.0
+## What's New in 2.20.2
 
-- Added independent startup display settings for History and Pinned. Each view can restore its previous state or start from configured defaults on every startup.
-- Added startup defaults for project display and project scope. History can also start in By Date or Sessions List view.
+- Fixed excessive memory usage when processing large search indexes, which could crash the extension host and cause repeated index rebuilds. ([#23](https://github.com/HizTam/codex-history-viewer/issues/23))
+- Fixed some messages and tool results preserved during compaction in Claude Code child agent histories being missing from the Session Viewer, search, and statistics.
+- Fixed Claude Code session and agent process shutdown interruptions being incorrectly classified in the Session Viewer, search, and statistics.
+- Fixed **Open Session as Markdown** treating Claude Code interruptions as numbered user messages, so subsequent message numbers match the Session Viewer.
+- Fixed incorrect diff message numbers and navigation targets in **File AI Change History** when Claude Code histories contain messages with only images or documents.
 
 ## Changelog
 
